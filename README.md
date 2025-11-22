@@ -5,7 +5,7 @@
 Inofficial Binding for openHAB for RainBird controllers.
 
 ## Contribution
-The protocol implementation is heavily inspired by and based on [allenporter/pyrainbird](https://github.com/allenporter/pyrainbird) - Thanks for this great work.
+[allenporter/pyrainbird](https://github.com/allenporter/pyrainbird) - Thanks for this great work.
 
 ## Features
 
@@ -91,6 +91,11 @@ Internally the binding maintains the duration in **minutes** for compatibility w
 can be supported.
 
 *Note: Slider needs to be done as custom widget and is not implemented*
+
+## Debug
+`log:set DEBUG org.openhab.binding.rainbird`
+`log:set DEBUG org.openhab.binding.rainbird.internal`
+`log:tail` or `log:tail | grep -i rainbird`
 
 ## not implemented
 * option to skip zones
