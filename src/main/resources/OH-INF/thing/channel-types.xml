@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions xmlns:thing="https://openhab.org/schemas/thing-description/v1.0.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" bindingId="rainbird"
+        xsi:schemaLocation="https://openhab.org/schemas/thing-description/v1.0.0 https://openhab.org/schemas/thing-description-1.0.0.xsd">
+
+        <channel-type id="networkUp">
+                <item-type>Switch</item-type>
+                <label>Controller Network Connectivity</label>
+                <description>Indicates whether the controller is connected to the local network.</description>
+                <category>Network</category>
+                <tags>
+                        <tag>Control</tag>
+                </tags>
+                <state readOnly="false"/>
+        </channel-type>
+
+
+        <channel-type id="internetUp">
+                <item-type>Switch</item-type>
+                <label>Controller Internet Connectivity</label>
+                <description>Indicates whether the controller can reach the Rain Bird cloud.</description>
+                <category>Network</category>
+                <state readOnly="true"/>
+        </channel-type>
+
+        <channel-type id="wifiSignal">
+                <item-type>Number:Dimensionless</item-type>
+                <label>Wi-Fi Signal Strength</label>
+                <description>Wi-Fi signal strength reported by the controller.</description>
+                <category>SignalStrength</category>
+                <state readOnly="true" pattern="%.0f %%"/>
+        </channel-type>
+
+        <channel-type id="wifiSsid">
+                <item-type>String</item-type>
+                <label>Wi-Fi SSID</label>
+                <description>Name of the Wi-Fi network used by the controller.</description>
+                <category>Text</category>
+                <state readOnly="true"/>
+        </channel-type>
+
+        <channel-type id="wifiMac">
+                <item-type>String</item-type>
+                <label>Wi-Fi MAC Address</label>
+                <description>MAC address reported by the controller.</description>
+                <category>Text</category>
+                <state readOnly="true"/>
+        </channel-type>
+
+        <channel-type id="zoneCount">
+                <item-type>Number</item-type>
+                <label>Zone Count</label>
+                <description>Total number of irrigation zones supported by the controller.</description>
+                <category>Number</category>
+                <state readOnly="true" pattern="%.0f"/>
+        </channel-type>
+
+        <channel-type id="programCount">
+                <item-type>Number</item-type>
+                <label>Program Count</label>
+                <description>Number of irrigation programs configured in the controller.</description>
+                <category>Number</category>
+                <state readOnly="true" pattern="%.0f"/>
+        </channel-type>
+
+        <channel-type id="scheduleSummary">
+                <item-type>String</item-type>
+                <label>Schedule Summary</label>
+                <description>Textual summary of the currently configured irrigation schedule.</description>
+                <category>Text</category>
+                <state readOnly="true"/>
+        </channel-type>
+
+        <channel-type id="controllerTime">
+                <item-type>DateTime</item-type>
+                <label>Controller Time</label>
+                <description>Current time reported by the controller.</description>
+                <category>Time</category>
+                <state readOnly="true"/>
+        </channel-type>
+
+        <channel-type id="rainDelay">
+                <item-type>Number:Time</item-type>
+                <label>Rain Delay</label>
+                <description>Remaining rain delay configured on the controller.</description>
+                <category>Time</category>
+                <state readOnly="true" pattern="%.0f d"/>
+        </channel-type>
+
+        <channel-type id="seasonalAdjust">
+                <item-type>Number:Dimensionless</item-type>
+                <label>Seasonal Adjust</label>
+                <description>Percentage based seasonal adjustment applied to watering schedules.</description>
+                <category>Settings</category>
+                <state readOnly="true" pattern="%.0f %%"/>
+        </channel-type>
+
+        <channel-type id="activeStation">
+                <item-type>Number</item-type>
+                <label>Active Station</label>
+                <description>Currently running irrigation station.</description>
+                <category>Number</category>
+                <state readOnly="true" pattern="%.0f">
+                   <options>
+                      <option value="0">AUS</option>
+                      <option value="1">EIN</option>
+                   </options>
+                </state>
+        </channel-type>
+
+        <channel-type id="lastPoll">
+                <item-type>DateTime</item-type>
+                <label>Last Poll</label>
+                <description>Timestamp when the controller status was last refreshed.</description>
+                <category>Time</category>
+                <state readOnly="true"/>
+        </channel-type>
+
+        <channel-type id="programSelector">
+                <item-type>String</item-type>
+                <label>Program Selector</label>
+                <description>Start or stop a stored irrigation program.</description>
+                <category>Control</category>
+                <state>
+                        <options>
+                                <option value="A">Program A</option>
+                                <option value="B">Program B</option>
+                                <option value="C">Program C</option>
+                                <option value="STOP">Stop All Programs</option>
+                        </options>
+                </state>
+        </channel-type>
+
+        <channel-type id="manualZoneSelector">
+                <item-type>String</item-type>
+                <label>Manual Zone Selector</label>
+                <description>Send a zone command such as ZONE1_ON or ZONE1_OFF to run or stop a station manually.</description>
+                <category>Control</category>
+        </channel-type>
+
+        <channel-type id="zoneActive">
+                <item-type>Switch</item-type>
+                <label>Zone Active</label>
+                <description>Start or stop manual watering for this zone.</description>
+                <category>Water</category>
+                <tags>
+                        <tag>Control</tag>
+                </tags>
+                <state readOnly="false"/>
+        </channel-type>
+
+        <channel-type id="zoneDuration">
+                <item-type>Number</item-type>
+                <label>Zone Duration</label>
+                <description>Requested manual watering duration for this zone in seconds.</description>
+                <category>Time</category>
+                                <tags>
+                        <tag>Control</tag>
+                </tags>
+                <state readOnly="false" min="60" max="5940" step="60" pattern="%d s"/>
+        </channel-type>
+
+        <channel-type id="zoneRemaining">
+                <item-type>Number</item-type>
+                <label>Zone Remaining Duration</label>
+                <description>Remaining manual watering duration for this zone in seconds.</description>
+                <category>Time</category>
+                                <tags>
+                        <tag>Status</tag>
+                </tags>
+                <state readOnly="true" pattern="%d s"/>
+        </channel-type>
+
+        <channel-type id="switch">
+                <item-type>Switch</item-type>
+                <label>Zone Switch</label>
+                <description>Turn the configured zone on or off.</description>
+                <category>Switch</category>
+        </channel-type>
+
+        <channel-type id="remainingTime">
+                <item-type>Number:Time</item-type>
+                <label>Remaining Runtime</label>
+                <description>Remaining runtime for the zone in seconds.</description>
+                <category>Time</category>
+                <state readOnly="true" pattern="%.0f s"/>
+        </channel-type>
+
+        <channel-type id="flow">
+                <item-type>Number:FlowRate</item-type>
+                <label>Zone Flow</label>
+                <description>Measured flow for the zone if supported by the controller.</description>
+                <category>Flow</category>
+                <state readOnly="true"/>
+        </channel-type>
+
+</thing:thing-descriptions>

@@ -1,0 +1,15 @@
+Bundle-SymbolicName: org.openhab.binding.rainbird
+Bundle-Name: openHAB Add-ons :: Bundles :: Rain Bird Binding
+Bundle-Vendor: openHAB Community
+
+# Make binding visible in UI (explicit + defensive)
+openhab.addon: binding
+openhab.binding: rainbird
+-addheaders: openhab.addon=binding,openhab.binding=rainbird
+Bundle-Category: binding
+
+# Binding setup
+Export-Package: !*
+Private-Package: org.openhab.binding.rainbird.internal.*
+Import-Package: *
+-dsannotations: *

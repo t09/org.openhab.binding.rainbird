@@ -1,0 +1,71 @@
+<ns0:thing-descriptions xmlns:ns0="https://openhab.org/schemas/thing-description/v1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" bindingId="rainbird" xsi:schemaLocation="https://openhab.org/schemas/thing-description/v1.0.0 https://openhab.org/schemas/thing-description-1.0.0.xsd">
+        <bridge-type id="bridge">
+                <label>Rain Bird Controller</label>
+                <description>Provides the connection and channels for a Rain Bird irrigation controller.</description>
+                <channels>
+                        <channel id="networkUp" typeId="networkUp" />
+                        <channel id="internetUp" typeId="internetUp" />
+                        <channel id="wifiSignal" typeId="wifiSignal" />
+                        <channel id="wifiSsid" typeId="wifiSsid" />
+                        <channel id="wifiMac" typeId="wifiMac" />
+                        <channel id="zoneCount" typeId="zoneCount" />
+                        <channel id="programCount" typeId="programCount" />
+                        <channel id="scheduleSummary" typeId="scheduleSummary" />
+                        <channel id="controllerTime" typeId="controllerTime" />
+                        <channel id="rainDelay" typeId="rainDelay" />
+                        <channel id="seasonalAdjust" typeId="seasonalAdjust" />
+                        <channel id="activeStation" typeId="activeStation" />
+                        <channel id="lastPoll" typeId="lastPoll" />
+                        <channel id="programSelector" typeId="programSelector" />
+                                        </channels>
+
+                <properties>
+                        <property name="controller.model">Unknown</property>
+                        <property name="controller.firmware">Unknown</property>
+                        <property name="wifi.firmware">Unknown</property>
+                        <property name="controller.customStationName">Unknown</property>
+                        <property name="controller.zipCode">Unknown</property>
+                        <property name="controller.country">Unknown</property>
+                </properties>
+
+                <representation-property>host</representation-property>
+                <config-description>
+                        <parameter name="host" type="text" required="true">
+                                <label>Host Name or IP</label>
+                                <description>Hostname or IP address of the Rain Bird Wi-Fi module.</description>
+                                <advanced>false</advanced>
+                        </parameter>
+                        <parameter name="port" type="integer" min="1" max="65535">
+                                <label>Port</label>
+                                <description>TCP port used by the controller. (default: 80)</description>
+                                <default>80</default>
+                                <advanced>true</advanced>
+                        </parameter>
+                        <parameter name="password" type="text" required="true">
+                                <label>Password</label>
+                                <description>Password required by the controller.</description>
+                                <context>password</context>
+                                <advanced>false</advanced>
+                        </parameter>
+                        <parameter name="refresh" type="integer" min="5" unit="s">
+                                <label>Refresh Interval</label>
+                                <description>Polling interval for the controller status.</description>
+                                <default>30</default>
+                                <advanced>true</advanced>
+                        </parameter>
+                        <parameter name="timeout" type="integer" min="1000" unit="ms">
+                                <label>Request Timeout</label>
+                                <description>Timeout for network requests.</description>
+                                <default>5000</default>
+                                <advanced>true</advanced>
+                        </parameter>
+                        <parameter name="deviceId" type="text" required="false">
+                                <label>Controller Identifier</label>
+                                <description>Identifier used to distinguish the controller.</description>
+                                <default>controller</default>
+                                <advanced>true</advanced>
+                        </parameter>
+                </config-description>
+        </bridge-type>
+        
+</ns0:thing-descriptions>
