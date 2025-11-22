@@ -30,7 +30,7 @@ The LNK WiFi stick is discovered automatically via **SCAN** button on the local 
 It appears in the Inbox as **Rain Bird Controller (Local)**
 After moving from inbox you have to enter your password.
 
-*Note:* Trigger is "RainBird.localdomain" as hostname which is given by LNK2 WiFi module - other controllers may not be detected automatically.
+*Note: Trigger is "RainBird.localdomain" as hostname which is given by LNK2 WiFi module - other controllers may not be detected automatically.*
 
 ## Bridge Configuration
 
@@ -90,11 +90,12 @@ Internally the binding maintains the duration in **minutes** for compatibility w
 * second-accurate values for HomeKit / rules
 can be supported.
 
-*Note:* Slider needs to be done as custom widget and is not implemented
+*Note: Slider needs to be done as custom widget and is not implemented*
 
 ## not implemented
 * option to skip zones
 * option to de/activate a zone
+* manually add/remove zone from controller
 
 ## known limitations
 * This is an experimental binding [BETA]
