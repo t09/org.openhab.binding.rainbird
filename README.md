@@ -38,7 +38,7 @@ The exact field names may differ slightly by openHAB version, but conceptually y
 
 | Parameter           | Required | Description                                                      |
 |---------------------|----------|------------------------------------------------------------------|
-| IP / Host           | yes (for manual creation) | IP address of the LNK WiFi stick in your LAN                     |
+| IP / Host           | yes (for manual creation) | IP address of the LNK WiFi stick in your LAN    |
 | Password            | yes      | Device password as printed on the LNK stick                      |
 | Poll interval       | optional | Status polling interval in seconds (e.g. `30`)                   |
 
@@ -90,10 +90,16 @@ Internally the binding maintains the duration in **minutes** for compatibility w
 * second-accurate values for HomeKit / rules
 can be supported.
 
-*Note:* Slider needs to be done as custom widget
+*Note:* Slider needs to be done as custom widget and is not implemented
 
-## not implanted
+## not implemented
 * option to skip zones
 * option to de/activate a zone
 
-Known Limitations
+## known limitations
+* This is an experimental binding [BETA]
+* may not work on other controllers than LNK2
+* debugging is not guaranteed
+
+## Donations
+BTC: 3EaR4sURisXD2pjCToscZAwgFTNXZNXj95
