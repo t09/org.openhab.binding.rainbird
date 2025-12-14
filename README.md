@@ -95,6 +95,8 @@ can be supported.
 ## Debug
 * `log:set DEBUG org.openhab.binding.rainbird`
 * `log:set DEBUG org.openhab.binding.rainbird.internal`
+* `log:set INFO org.openhab.binding.rainbird.internal.handler`
+* `log:set INFO org.openhab.binding.rainbird.internal.net`
 * `log:tail` or `log:tail | grep -i rainbird`
 
 ## not implemented
