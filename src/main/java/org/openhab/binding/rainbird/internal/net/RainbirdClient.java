@@ -7,7 +7,7 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
+
 import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.Instant;
@@ -34,12 +34,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Client implementation that communicates with a Rain Bird controller via the encrypted stick protocol.
+ * Client implementation that communicates with a Rain Bird controller via the
+ * encrypted stick protocol.
  */
 @NonNullByDefault
 public class RainbirdClient {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(RainbirdClient.class);
+    private static final Logger LOGGER = Objects.requireNonNull(LoggerFactory.getLogger(RainbirdClient.class));
     private static final Map<String, String> RAINBIRD_APP_HEADERS;
 
     static {
@@ -49,7 +50,7 @@ public class RainbirdClient {
         headers.put("User-Agent", "RainBird/2.0 CFNetwork/811.5.4 Darwin/16.7.0");
         headers.put("Accept", "*/*");
         headers.put("Content-Type", "application/octet-stream");
-        RAINBIRD_APP_HEADERS = Collections.unmodifiableMap(headers);
+        RAINBIRD_APP_HEADERS = Objects.requireNonNull(Collections.unmodifiableMap(headers));
     }
 
     private final RainbirdPayloadCoder coder;
@@ -65,17 +66,17 @@ public class RainbirdClient {
 
     private static Duration resolveTimeout(RainbirdConfiguration configuration) {
         int timeout = configuration.timeoutMillis > 0 ? configuration.timeoutMillis : 5000;
-        return Duration.ofMillis(Math.max(1000, timeout));
+        return Objects.requireNonNull(Duration.ofMillis(Math.max(1000, timeout)));
     }
 
     private static URI buildEndpoint(RainbirdConfiguration configuration) {
         String host = configuration.host;
-        if (host == null || host.isBlank()) {
+        if (host.isBlank()) {
             throw new IllegalArgumentException("Rain Bird host is not configured");
         }
 
         String path = configuration.basePath;
-        if (path == null || path.isBlank()) {
+        if (path.isBlank()) {
             path = "/stick";
         }
         path = path.trim();
@@ -98,26 +99,32 @@ public class RainbirdClient {
      * Poll the controller for its current status, programs and zone state.
      */
     public PollingResult poll() throws IOException, InterruptedException {
-        Map<String, Object> networkPayload = invoke("getNetworkStatus", Map.of());
+        Map<String, @Nullable Object> networkPayload = invoke("getNetworkStatus",
+                new LinkedHashMap<String, @Nullable Object>());
         NetworkStatus networkStatus = new NetworkStatus(asBoolean(networkPayload.get("networkUp")),
                 asBoolean(networkPayload.get("internetUp")));
 
-        Map<String, Object> wifiPayload = invoke("getWifiParams", Map.of());
+        Map<String, @Nullable Object> wifiPayload = invoke("getWifiParams",
+                new LinkedHashMap<String, @Nullable Object>());
         WifiStatus wifiStatus = decodeWifiStatus(wifiPayload);
 
-        Map<String, Object> settingsPayload = invoke("getSettings", Map.of());
+        Map<String, @Nullable Object> settingsPayload = invoke("getSettings",
+                new LinkedHashMap<String, @Nullable Object>());
         int programCount = asInt(settingsPayload.get("numPrograms"), 0);
 
-        AvailableStationsData stations = sendCommand(StickCommand.AVAILABLE_STATIONS, RainbirdClient::decodeAvailableStations,
+        AvailableStationsData stations = sendCommand(StickCommand.AVAILABLE_STATIONS,
+                RainbirdClient::decodeAvailableStations,
                 Integer.valueOf(0));
         CombinedState combinedState = sendCommand(StickCommand.COMBINED_CONTROLLER_STATE,
                 RainbirdClient::decodeCombinedControllerState);
 
         List<String> scheduleSummaries = fetchScheduleSummaries(programCount, stations);
 
-        ControllerStatus controllerStatus = new ControllerStatus(networkStatus, wifiStatus, combinedState, Instant.now());
+        ControllerStatus controllerStatus = new ControllerStatus(networkStatus, wifiStatus, combinedState,
+                Objects.requireNonNull(Instant.now()));
         ProgramStatus programStatus = new ProgramStatus(programCount, scheduleSummaries);
-        ZoneStatus zoneStatus = new ZoneStatus(stations.activeZones(), stations.slotCount(), combinedState.getActiveStation(),
+        ZoneStatus zoneStatus = new ZoneStatus(stations.activeZones(), stations.slotCount(),
+                combinedState.getActiveStation(),
                 combinedState.getRemainingRuntime());
 
         return new PollingResult(controllerStatus, programStatus, zoneStatus);
@@ -142,7 +149,7 @@ public class RainbirdClient {
      * Retrieve the configured zip code and country.
      */
     public ZipCodeInfo getZipCode() throws IOException, InterruptedException {
-        Map<String, Object> response = invoke("getZipCode", Map.of());
+        Map<String, @Nullable Object> response = invoke("getZipCode", new LinkedHashMap<String, @Nullable Object>());
         return decodeZipCode(response);
     }
 
@@ -151,11 +158,11 @@ public class RainbirdClient {
      */
     public WeatherStatus getWeatherAndStatus(String stickId, String country, String zipCode)
             throws IOException, InterruptedException {
-        Map<String, Object> params = new LinkedHashMap<>();
+        Map<String, @Nullable Object> params = new LinkedHashMap<>();
         params.put("StickId", stickId);
         params.put("Country", country);
         params.put("ZipCode", zipCode);
-        Map<String, Object> response = invoke("requestWeatherAndStatus", params);
+        Map<String, @Nullable Object> response = invoke("requestWeatherAndStatus", params);
         return decodeWeatherStatus(response);
     }
 
@@ -228,32 +235,28 @@ public class RainbirdClient {
         return failureResult(StickCommand.STOP_IRRIGATION);
     }
 
-    protected Map<String, Object> invoke(String method, Map<String, Object> params)
+    protected Map<String, @Nullable Object> invoke(String method, Map<String, @Nullable Object> params)
             throws IOException, InterruptedException {
-        Map<String, Object> payload = RainbirdPayloadCoder.requestPayload(nextRequestId(), method,
+        Map<String, @Nullable Object> payload = RainbirdPayloadCoder.requestPayload(nextRequestId(), method,
                 new LinkedHashMap<>(params));
         byte[] body = coder.encode(payload);
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Sending Rain Bird request '{}' to {} with payload {}", method, endpoint, payload);
         }
         byte[] responseBody = sendRequest(body);
-        Map<String, Object> envelope = coder.decode(responseBody);
+        Map<String, @Nullable Object> envelope = coder.decode(responseBody);
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Rain Bird response for '{}' from {}: {}", method, endpoint, envelope);
         }
-        Object error = envelope.get("error");
-        if (error instanceof Map) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> errorMap = (Map<String, Object>) error;
-            throw new IOException("Rain Bird responded with an error: " + errorMap.get("message"));
+        Map<String, @Nullable Object> error = asMap(envelope.get("error"));
+        if (error != null) {
+            throw new IOException("Rain Bird responded with an error: " + error.get("message"));
         }
-        Object result = envelope.get("result");
-        if (!(result instanceof Map)) {
+        Map<String, @Nullable Object> result = asMap(envelope.get("result"));
+        if (result == null) {
             throw new IOException("Unexpected Rain Bird response payload");
         }
-        @SuppressWarnings("unchecked")
-        Map<String, Object> responseMap = (Map<String, Object>) result;
-        return responseMap;
+        return result;
     }
 
     private byte[] sendRequest(byte[] body) throws IOException {
@@ -311,10 +314,10 @@ public class RainbirdClient {
     private byte[] readResponse(HttpURLConnection connection, int status) throws IOException {
         InputStream responseStream = status >= 400 ? connection.getErrorStream() : connection.getInputStream();
         if (responseStream == null) {
-            return new byte[0];
+            return Objects.requireNonNull(new byte[0]);
         }
         try (InputStream stream = wrapContentStream(responseStream, connection.getContentEncoding())) {
-            return stream.readAllBytes();
+            return Objects.requireNonNull(stream.readAllBytes());
         }
     }
 
@@ -335,22 +338,24 @@ public class RainbirdClient {
     private <T> T sendCommand(StickCommand command, SipDecoder<T> decoder, Object... args)
             throws IOException, InterruptedException {
         String payload = command.encode(args);
-        Map<String, Object> params = new LinkedHashMap<>();
+        Map<String, @Nullable Object> params = new LinkedHashMap<>();
         params.put("data", payload);
-        params.put("length", Integer.valueOf(command.length));
-        Map<String, Object> response = invoke("tunnelSip", params);
-        Object encoded = response.get("data");
-        if (!(encoded instanceof String)) {
+        params.put("length", Objects.requireNonNull(Integer.valueOf(command.length)));
+        Map<String, @Nullable Object> response = invoke("tunnelSip", params);
+        String data = asString(response.get("data"));
+        if (data == null) {
             throw new IOException("Rain Bird tunnel response missing data field");
         }
-        String data = (String) encoded;
         if (data.length() < 2) {
             throw new IOException("Rain Bird tunnel response malformed");
         }
         return decoder.decode(command, data);
     }
 
-    private static WifiStatus decodeWifiStatus(Map<String, Object> wifiParams) {
+    private static WifiStatus decodeWifiStatus(@Nullable Map<String, @Nullable Object> wifiParams) {
+        if (wifiParams == null) {
+            return new WifiStatus(0, null, null, null);
+        }
         int rssi = asInt(wifiParams.get("rssi"), 0);
         String ssid = asString(wifiParams.get("wifiSsid"));
         String mac = asString(wifiParams.get("macAddress"));
@@ -361,7 +366,7 @@ public class RainbirdClient {
     private static AvailableStationsData decodeAvailableStations(StickCommand command, String data) throws IOException {
         expectPrefix(command, data, "83");
         if (data.length() < 12) {
-            return new AvailableStationsData(Set.of(), 0);
+            return new AvailableStationsData(Objects.requireNonNull(Set.of()), 0);
         }
         int page = safeParseHex(data, 2, 2);
         String mask = data.substring(4);
@@ -409,7 +414,8 @@ public class RainbirdClient {
         int remainingRuntime = parseHex(data, 26, 4);
         int activeStation = parseHex(data, 30, 2);
         LocalDateTime controllerTime = safeControllerTime(year, month, day, hour, minute, second);
-        return new CombinedState(delaySetting, sensorState, irrigationState, seasonalAdjust, remainingRuntime, activeStation,
+        return new CombinedState(delaySetting, sensorState, irrigationState, seasonalAdjust, remainingRuntime,
+                activeStation,
                 controllerTime);
     }
 
@@ -452,29 +458,33 @@ public class RainbirdClient {
         return data;
     }
 
-    private static ZipCodeInfo decodeZipCode(Map<String, Object> response) {
-        String country = asString(response.get("country"));
-        String code = asString(response.get("code"));
-        return new ZipCodeInfo(code, country);
+    private static ZipCodeInfo decodeZipCode(@Nullable Map<String, @Nullable Object> response) {
+        if (response == null) {
+            return new ZipCodeInfo(null, null);
+        }
+        String zipCode = asString(response.get("ZipCode"));
+        String country = asString(response.get("Country"));
+        return new ZipCodeInfo(zipCode, country);
     }
 
-    private static WeatherStatus decodeWeatherStatus(Map<String, Object> response) {
+    @SuppressWarnings("null")
+    private static WeatherStatus decodeWeatherStatus(@Nullable Map<String, @Nullable Object> response) {
+        if (response == null) {
+            return new WeatherStatus(null, null, Collections.emptyMap());
+        }
         String stickId = asString(response.get("StickId"));
-        @Nullable String controllerName = null;
+        @Nullable
+        String controllerName = null;
         Map<Integer, String> stationNames = new LinkedHashMap<>();
-        Object controllerObject = response.get("Controller");
-        if (controllerObject instanceof Map) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> controller = (Map<String, Object>) controllerObject;
+        Map<String, @Nullable Object> controller = asMap(response.get("Controller"));
+        if (controller != null) {
             controllerName = asString(controller.get("custom_name"));
             if (controllerName == null) {
                 controllerName = asString(controller.get("customName"));
             }
-            Object namesObject = controller.get("customStationNames");
-            if (namesObject instanceof Map) {
-                @SuppressWarnings("unchecked")
-                Map<Object, Object> names = (Map<Object, Object>) namesObject;
-                for (Map.Entry<Object, Object> entry : names.entrySet()) {
+            Map<@Nullable Object, @Nullable Object> names = asMapGeneric(controller.get("customStationNames"));
+            if (names != null) {
+                for (Map.Entry<@Nullable Object, @Nullable Object> entry : names.entrySet()) {
                     String key = asString(entry.getKey());
                     String value = asString(entry.getValue());
                     if (key == null || value == null) {
@@ -482,7 +492,7 @@ public class RainbirdClient {
                     }
                     try {
                         int zone = Integer.parseInt(key);
-                        stationNames.put(Integer.valueOf(zone), value);
+                        stationNames.put(Objects.requireNonNull(Integer.valueOf(zone)), value);
                     } catch (NumberFormatException e) {
                         LOGGER.debug("Ignoring invalid custom station key {}", key, e);
                     }
@@ -496,14 +506,16 @@ public class RainbirdClient {
             throws IOException, InterruptedException {
         Set<Integer> activeZones = stations.activeZones();
         List<String> responses = new ArrayList<>();
-        responses.add(sendCommand(StickCommand.RETRIEVE_SCHEDULE, RainbirdClient::decodeScheduleSegment, Integer.valueOf(0)));
+        responses.add(
+                sendCommand(StickCommand.RETRIEVE_SCHEDULE, RainbirdClient::decodeScheduleSegment,
+                        Objects.requireNonNull(Integer.valueOf(0))));
         for (int program = 0; program < programCount; program++) {
             responses.add(sendCommand(StickCommand.RETRIEVE_SCHEDULE, RainbirdClient::decodeScheduleSegment,
-                    Integer.valueOf(0x10 | program)));
+                    Objects.requireNonNull(Integer.valueOf(0x10 | program))));
         }
         for (int program = 0; program < programCount; program++) {
             responses.add(sendCommand(StickCommand.RETRIEVE_SCHEDULE, RainbirdClient::decodeScheduleSegment,
-                    Integer.valueOf(0x60 | program)));
+                    Objects.requireNonNull(Integer.valueOf(0x60 | program))));
         }
         int highestActive = activeZones.stream().mapToInt(Integer::intValue).max().orElse(0);
         int slotCount = stations.slotCount();
@@ -511,7 +523,7 @@ public class RainbirdClient {
         int pages = (zoneLimit + 1) / 2;
         for (int page = 0; page < pages; page++) {
             responses.add(sendCommand(StickCommand.RETRIEVE_SCHEDULE, RainbirdClient::decodeScheduleSegment,
-                    Integer.valueOf(0x80 | page)));
+                    Objects.requireNonNull(Integer.valueOf(0x80 | page))));
         }
         RainbirdScheduleParser parser = new RainbirdScheduleParser(programCount, activeZones);
         for (String response : responses) {
@@ -555,6 +567,22 @@ public class RainbirdClient {
         return null;
     }
 
+    @SuppressWarnings("unchecked")
+    private static @Nullable Map<String, @Nullable Object> asMap(@Nullable Object value) {
+        if (value instanceof Map) {
+            return (Map<String, @Nullable Object>) value;
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static @Nullable Map<@Nullable Object, @Nullable Object> asMapGeneric(@Nullable Object value) {
+        if (value instanceof Map) {
+            return (Map<@Nullable Object, @Nullable Object>) value;
+        }
+        return null;
+    }
+
     private static int parseHex(String data, int position, int length) throws IOException {
         int end = position + length;
         if (position < 0 || end > data.length()) {
@@ -576,15 +604,12 @@ public class RainbirdClient {
     private static LocalDateTime safeControllerTime(int year, int month, int day, int hour, int minute, int second) {
         try {
             int safeMonth = Math.max(1, Math.min(month, 12));
-            int safeDay = Math.max(1, Math.min(day, 31));
-            int safeHour = Math.max(0, Math.min(hour, 23));
-            int safeMinute = Math.max(0, Math.min(minute, 59));
-            int safeSecond = Math.max(0, Math.min(second, 59));
-            return LocalDateTime.of(year, safeMonth, safeDay, safeHour, safeMinute, safeSecond);
+            int safeDay = Math.max(1, Math.min(day, 28));
+            return Objects.requireNonNull(LocalDateTime.of(year, safeMonth, safeDay, hour, minute, second));
         } catch (DateTimeException e) {
-            LOGGER.debug("Invalid controller time {}/{}/{} {}:{}:{}", Integer.valueOf(month), Integer.valueOf(day),
-                    Integer.valueOf(year), Integer.valueOf(hour), Integer.valueOf(minute), Integer.valueOf(second), e);
-            return LocalDateTime.of(1970, 1, 1, 0, 0);
+            LOGGER.debug("Invalid controller time: {}-{}-{} {}:{}:{}", Integer.valueOf(year), Integer.valueOf(month),
+                    Integer.valueOf(day), Integer.valueOf(hour), Integer.valueOf(minute), Integer.valueOf(second));
+            return Objects.requireNonNull(LocalDateTime.now());
         }
     }
 
@@ -668,7 +693,7 @@ public class RainbirdClient {
 
         public ProgramStatus(int programCount, List<String> summaries) {
             this.programCount = programCount;
-            this.summaries = Collections.unmodifiableList(new ArrayList<>(summaries));
+            this.summaries = Objects.requireNonNull(Collections.unmodifiableList(new ArrayList<>(summaries)));
         }
 
         public int getProgramCount() {
@@ -688,7 +713,7 @@ public class RainbirdClient {
         private final int remainingRuntime;
 
         public ZoneStatus(Set<Integer> availableZones, int slotCount, int activeZone, int remainingRuntime) {
-            this.availableZones = Collections.unmodifiableSet(new HashSet<>(availableZones));
+            this.availableZones = Objects.requireNonNull(Collections.unmodifiableSet(new HashSet<>(availableZones)));
             this.slotCount = slotCount;
             this.activeZone = activeZone;
             this.remainingRuntime = remainingRuntime;
@@ -804,7 +829,8 @@ public class RainbirdClient {
                 Map<Integer, String> customStationNames) {
             this.stickId = stickId;
             this.controllerName = controllerName;
-            this.customStationNames = Collections.unmodifiableMap(new LinkedHashMap<>(customStationNames));
+            this.customStationNames = Objects
+                    .requireNonNull(Collections.unmodifiableMap(new LinkedHashMap<>(customStationNames)));
         }
 
         public @Nullable String getStickId() {
@@ -881,7 +907,8 @@ public class RainbirdClient {
         private final int activeStation;
         private final LocalDateTime controllerTime;
 
-        public CombinedState(int delaySetting, int sensorState, int irrigationState, int seasonalAdjust, int remainingRuntime,
+        public CombinedState(int delaySetting, int sensorState, int irrigationState, int seasonalAdjust,
+                int remainingRuntime,
                 int activeStation, LocalDateTime controllerTime) {
             this.delaySetting = delaySetting;
             this.sensorState = sensorState;
@@ -961,20 +988,22 @@ public class RainbirdClient {
         public String encode(Object... args) {
             StringBuilder builder = new StringBuilder(commandCode);
             if (this == RETRIEVE_SCHEDULE) {
-                int value = args.length > 0 ? toInt(args[0]) : 0;
-                builder.append(String.format("%04X", Integer.valueOf(value & 0xFFFF)));
-                return builder.toString();
+                int value = args.length > 0 ? toInt(Objects.requireNonNull(args[0])) : 0;
+                builder.append(Objects.requireNonNull(String.format("%04X", Integer.valueOf(value & 0xFFFF))));
+                return Objects.requireNonNull(builder.toString());
             }
             if (this == MANUALLY_RUN_STATION) {
-                int zone = args.length > 0 ? toInt(args[0]) : 0;
-                int minutes = args.length > 1 ? toInt(args[1]) : 0;
-                builder.append(String.format("%04X%02X", Integer.valueOf(zone & 0xFFFF), Integer.valueOf(minutes & 0xFF)));
-                return builder.toString();
+                int zone = args.length > 0 ? toInt(Objects.requireNonNull(args[0])) : 0;
+                int minutes = args.length > 1 ? toInt(Objects.requireNonNull(args[1])) : 0;
+                builder.append(Objects.requireNonNull(
+                        String.format("%04X%02X", Integer.valueOf(zone & 0xFFFF), Integer.valueOf(minutes & 0xFF))));
+                return Objects.requireNonNull(builder.toString());
             }
             for (Object arg : args) {
-                builder.append(String.format("%02X", Integer.valueOf(toInt(arg) & 0xFF)));
+                builder.append(Objects.requireNonNull(
+                        String.format("%02X", Integer.valueOf(toInt(Objects.requireNonNull(arg)) & 0xFF))));
             }
-            return builder.toString();
+            return Objects.requireNonNull(builder.toString());
         }
 
         public int commandEcho() {
@@ -998,16 +1027,13 @@ public class RainbirdClient {
     }
 
     private static String toHexDump(byte[] data) {
-        if (data == null) {
-            return "<null>";
-        }
         StringBuilder sb = new StringBuilder();
         int offset = 0;
         for (int i = 0; i < data.length; i += 16) {
-            sb.append(String.format("%04X: ", Integer.valueOf(offset)));
+            sb.append(Objects.requireNonNull(String.format("%04X: ", Integer.valueOf(offset))));
             int j;
             for (j = 0; j < 16 && i + j < data.length; j++) {
-                sb.append(String.format("%02X ", Integer.valueOf(data[i + j] & 0xFF)));
+                sb.append(Objects.requireNonNull(String.format("%02X ", Integer.valueOf(data[i + j] & 0xFF))));
             }
             for (; j < 16; j++) {
                 sb.append("   ");
@@ -1021,7 +1047,7 @@ public class RainbirdClient {
             sb.append('\n');
             offset += 16;
         }
-        return sb.toString();
+        return Objects.requireNonNull(sb.toString());
     }
 
 }

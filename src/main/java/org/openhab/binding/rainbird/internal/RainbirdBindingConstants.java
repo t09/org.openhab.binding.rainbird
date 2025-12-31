@@ -1,12 +1,16 @@
 package org.openhab.binding.rainbird.internal;
+
+import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.core.thing.ThingTypeUID;
 
 /**
  * Binding-weite Konstanten.
  */
+@NonNullByDefault
 public final class RainbirdBindingConstants {
 
-    private RainbirdBindingConstants() {}
+    private RainbirdBindingConstants() {
+    }
 
     // -----------------------------------------------------------------------
     // IDs

@@ -2,7 +2,11 @@ package org.openhab.binding.rainbird.internal;
 
 import static org.openhab.binding.rainbird.internal.RainbirdBindingConstants.*;
 
+import java.util.Objects;
 import java.util.Set;
+
+import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
 
 import org.openhab.binding.rainbird.internal.handler.RainbirdBridgeHandler;
 import org.openhab.binding.rainbird.internal.handler.RainbirdZoneHandler;
@@ -18,9 +22,11 @@ import org.osgi.service.component.annotations.Component;
  * Erstellt die passenden Handler für Bridge/Things.
  */
 @Component(service = ThingHandlerFactory.class)
+@NonNullByDefault
 public class RainbirdHandlerFactory extends BaseThingHandlerFactory {
 
-    private static final Set<ThingTypeUID> SUPPORTED_THING_TYPES = Set.of(BRIDGE_TYPE_UID, ZONE_TYPE_UID);
+    private static final Set<ThingTypeUID> SUPPORTED_THING_TYPES = Objects
+            .requireNonNull(Set.of(BRIDGE_TYPE_UID, ZONE_TYPE_UID));
 
     @Override
     public boolean supportsThingType(ThingTypeUID thingTypeUID) {
@@ -28,7 +34,7 @@ public class RainbirdHandlerFactory extends BaseThingHandlerFactory {
     }
 
     @Override
-    protected ThingHandler createHandler(Thing thing) {
+    protected @Nullable ThingHandler createHandler(Thing thing) {
         ThingTypeUID type = thing.getThingTypeUID();
 
         if (BRIDGE_TYPE_UID.equals(type)) {

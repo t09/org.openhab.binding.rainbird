@@ -8,9 +8,11 @@ import java.util.Map;
 import java.util.Objects;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
 
 /**
- * Minimal JSON parser/serializer used for communicating with the Rain Bird controller.
+ * Minimal JSON parser/serializer used for communicating with the Rain Bird
+ * controller.
  */
 @NonNullByDefault
 final class RainbirdJson {
@@ -19,19 +21,20 @@ final class RainbirdJson {
         // Utility class
     }
 
-    public static String stringify(Map<String, Object> value) throws IOException {
+    public static String stringify(Map<String, @Nullable Object> value) throws IOException {
         StringBuilder builder = new StringBuilder();
         new Serializer(builder).writeObject(value);
-        return builder.toString();
+        return Objects.requireNonNull(builder.toString());
     }
 
-    public static Map<String, Object> parseObject(String json) throws IOException {
+    public static Map<String, @Nullable Object> parseObject(String json) throws IOException {
+        @Nullable
         Object value = new Parser(json).parseValue();
         if (!(value instanceof Map)) {
             throw new IOException("JSON document is not an object");
         }
         @SuppressWarnings("unchecked")
-        Map<String, Object> result = (Map<String, Object>) value;
+        Map<String, @Nullable Object> result = (Map<String, @Nullable Object>) value;
         return result;
     }
 
@@ -43,15 +46,15 @@ final class RainbirdJson {
             this.builder = builder;
         }
 
-        void writeObject(Map<String, Object> value) throws IOException {
+        void writeObject(Map<String, @Nullable Object> value) throws IOException {
             builder.append('{');
             boolean first = true;
-            for (Map.Entry<String, Object> entry : value.entrySet()) {
+            for (Map.Entry<String, @Nullable Object> entry : value.entrySet()) {
                 if (!first) {
                     builder.append(',');
                 }
                 first = false;
-                writeString(entry.getKey());
+                writeString(Objects.requireNonNull(entry.getKey()));
                 builder.append(':');
                 writeValue(entry.getValue());
             }
@@ -107,16 +110,16 @@ final class RainbirdJson {
             builder.append('"');
         }
 
-        void writeValue(Object value) throws IOException {
+        void writeValue(@Nullable Object value) throws IOException {
             if (value == null) {
                 builder.append("null");
             } else if (value instanceof String) {
                 writeString((String) value);
             } else if (value instanceof Number || value instanceof Boolean) {
-                builder.append(Objects.toString(value));
+                builder.append(Objects.requireNonNull(Objects.toString(value)));
             } else if (value instanceof Map) {
                 @SuppressWarnings("unchecked")
-                Map<String, Object> map = (Map<String, Object>) value;
+                Map<String, @Nullable Object> map = (Map<String, @Nullable Object>) value;
                 writeObject(map);
             } else if (value instanceof List) {
                 writeArray((List<?>) value);
@@ -135,6 +138,7 @@ final class RainbirdJson {
             this.json = json;
         }
 
+        @Nullable
         Object parseValue() throws IOException {
             skipWhitespace();
             if (index >= json.length()) {
@@ -162,9 +166,9 @@ final class RainbirdJson {
             }
         }
 
-        private Map<String, Object> parseObject() throws IOException {
+        private Map<String, @Nullable Object> parseObject() throws IOException {
             expect('{');
-            Map<String, Object> result = new LinkedHashMap<>();
+            Map<String, @Nullable Object> result = new LinkedHashMap<>();
             skipWhitespace();
             if (peek('}')) {
                 index++;
@@ -176,6 +180,7 @@ final class RainbirdJson {
                 skipWhitespace();
                 expect(':');
                 skipWhitespace();
+                @Nullable
                 Object value = parseValue();
                 result.put(key, value);
                 skipWhitespace();
@@ -188,9 +193,9 @@ final class RainbirdJson {
             return result;
         }
 
-        private List<Object> parseArray() throws IOException {
+        private List<@Nullable Object> parseArray() throws IOException {
             expect('[');
-            List<Object> result = new ArrayList<>();
+            List<@Nullable Object> result = new ArrayList<>();
             skipWhitespace();
             if (peek(']')) {
                 index++;
@@ -215,7 +220,7 @@ final class RainbirdJson {
             while (index < json.length()) {
                 char c = json.charAt(index++);
                 if (c == '"') {
-                    return builder.toString();
+                    return Objects.requireNonNull(builder.toString());
                 }
                 if (c == '\\') {
                     if (index >= json.length()) {
@@ -268,11 +273,11 @@ final class RainbirdJson {
         private Boolean parseBoolean() throws IOException {
             if (json.startsWith("true", index)) {
                 index += 4;
-                return Boolean.TRUE;
+                return Objects.requireNonNull(Boolean.TRUE);
             }
             if (json.startsWith("false", index)) {
                 index += 5;
-                return Boolean.FALSE;
+                return Objects.requireNonNull(Boolean.FALSE);
             }
             throw new IOException("Invalid boolean value in JSON");
         }
@@ -316,13 +321,13 @@ final class RainbirdJson {
             String number = json.substring(start, index);
             try {
                 if (isFloat) {
-                    return Double.valueOf(number);
+                    return Objects.requireNonNull(Double.valueOf(number));
                 }
                 long value = Long.parseLong(number);
                 if (value >= Integer.MIN_VALUE && value <= Integer.MAX_VALUE) {
-                    return Integer.valueOf((int) value);
+                    return Objects.requireNonNull(Integer.valueOf((int) value));
                 }
-                return Long.valueOf(value);
+                return Objects.requireNonNull(Long.valueOf(value));
             } catch (NumberFormatException e) {
                 throw new IOException("Invalid number in JSON", e);
             }

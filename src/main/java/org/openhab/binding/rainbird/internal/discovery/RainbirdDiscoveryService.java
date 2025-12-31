@@ -8,6 +8,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
@@ -26,7 +27,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Very small discovery service that tries to resolve the mDNS name that the Rain Bird Wi-Fi module
+ * Very small discovery service that tries to resolve the mDNS name that the
+ * Rain Bird Wi-Fi module
  * advertises on the local network.
  */
 @Component(service = org.openhab.core.config.discovery.DiscoveryService.class, immediate = true, configurationPid = BINDING_ID)
@@ -34,11 +36,11 @@ import org.slf4j.LoggerFactory;
 public class RainbirdDiscoveryService extends AbstractDiscoveryService {
 
     private static final ThingTypeUID BRIDGE_UID = BRIDGE_TYPE_UID;
-    private final Logger logger = LoggerFactory.getLogger(RainbirdDiscoveryService.class);
+    private final Logger logger = Objects.requireNonNull(LoggerFactory.getLogger(RainbirdDiscoveryService.class));
 
     @Activate
     public RainbirdDiscoveryService(@Nullable Map<String, Object> configProperties) {
-        super(Set.of(BRIDGE_UID), 10, false);
+        super(Objects.requireNonNull(Set.of(BRIDGE_UID)), 10, false);
         activate(configProperties);
     }
 
@@ -48,7 +50,7 @@ public class RainbirdDiscoveryService extends AbstractDiscoveryService {
             InetAddress address = InetAddress.getByName("RainBird.localdomain");
             if (address != null) {
                 Map<String, Object> properties = new HashMap<>();
-                properties.put(CONFIG_HOST, address.getHostAddress());
+                properties.put(CONFIG_HOST, Objects.requireNonNull(address.getHostAddress()));
                 ThingUID thingUID = new ThingUID(BRIDGE_UID, "rainbird-local");
                 DiscoveryResult result = DiscoveryResultBuilder.create(thingUID).withProperties(properties)
                         .withRepresentationProperty(CONFIG_HOST).withLabel("Rain Bird Controller (Local)").build();

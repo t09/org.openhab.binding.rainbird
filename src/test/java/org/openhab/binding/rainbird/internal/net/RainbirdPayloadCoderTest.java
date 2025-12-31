@@ -8,28 +8,35 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
+import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Verifies that the payload coder can decrypt captured /stick responses and re-encode them.
+ * Verifies that the payload coder can decrypt captured /stick responses and
+ * re-encode them.
  */
+@NonNullByDefault
 class RainbirdPayloadCoderTest {
 
-    private Map<String, Object> fixture;
+    private @Nullable Map<String, @Nullable Object> fixture;
 
     @BeforeEach
     void loadFixture() throws IOException {
-        Path path = Path.of("src/test/resources/fixtures/stick_polling.json");
-        String json = Files.readString(path);
+        Path path = Objects.requireNonNull(Path.of("src/test/resources/fixtures/stick_polling.json"));
+        String json = Objects.requireNonNull(Files.readString(path));
         fixture = RainbirdJson.parseObject(json);
     }
 
     @Test
     void decodeCapturedResponses() throws IOException {
+        final Map<String, @Nullable Object> fixture = Objects.requireNonNull(this.fixture);
         @SuppressWarnings("unchecked")
-        Map<String, Object> responses = (Map<String, Object>) fixture.get("responses");
+        Map<String, @Nullable Object> responses = (Map<String, @Nullable Object>) Objects
+                .requireNonNull(fixture.get("responses"));
         String password = (String) fixture.get("password");
         RainbirdPayloadCoder coder = new RainbirdPayloadCoder(password);
 
@@ -47,20 +54,17 @@ class RainbirdPayloadCoderTest {
         expectedPayloads.put("tunnelSip_ack",
                 "{\"id\":6,\"jsonrpc\":\"2.0\",\"result\":{\"data\":\"0138\"}}");
 
-        for (Map.Entry<String, Object> entry : responses.entrySet()) {
-            String key = entry.getKey();
-            String hex = (String) entry.getValue();
+        for (Map.Entry<String, @Nullable Object> entry : responses.entrySet()) {
+            String key = Objects.requireNonNull(entry.getKey());
+            String hex = (String) Objects.requireNonNull(entry.getValue());
             byte[] payload = hexToBytes(hex);
-            Map<String, Object> decoded = coder.decode(payload);
-            String expectedJson = expectedPayloads.get(key);
-            if (expectedJson == null) {
-                throw new AssertionError("Missing expected payload for " + key);
-            }
-            Map<String, Object> expected = RainbirdJson.parseObject(expectedJson);
+            Map<String, @Nullable Object> decoded = coder.decode(payload);
+            String expectedJson = Objects.requireNonNull(expectedPayloads.get(key));
+            Map<String, @Nullable Object> expected = RainbirdJson.parseObject(expectedJson);
             assertEquals(expected, decoded, "Decoded payload did not match for " + key);
 
             byte[] reencoded = coder.encode(decoded);
-            Map<String, Object> roundTrip = coder.decode(reencoded);
+            Map<String, @Nullable Object> roundTrip = coder.decode(reencoded);
             assertEquals(decoded, roundTrip, "Round-trip encode/decode mismatch for " + key);
             assertNotEquals(hex, bytesToHex(reencoded), "Encoded payload should use unique IV for " + key);
         }
@@ -78,8 +82,8 @@ class RainbirdPayloadCoderTest {
     private static String bytesToHex(byte[] bytes) {
         StringBuilder builder = new StringBuilder(bytes.length * 2);
         for (byte b : bytes) {
-            builder.append(String.format("%02x", Byte.valueOf(b)));
+            builder.append(Objects.requireNonNull(String.format("%02x", Objects.requireNonNull(Byte.valueOf(b)))));
         }
-        return builder.toString();
+        return Objects.requireNonNull(builder.toString());
     }
 }

@@ -7,9 +7,11 @@ import static org.openhab.binding.rainbird.internal.RainbirdBindingConstants.CON
 import static org.openhab.binding.rainbird.internal.RainbirdBindingConstants.CONFIG_ZONE_NUMBER;
 
 import java.io.IOException;
+import java.util.Objects;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.rainbird.internal.handler.RainbirdBridgeHandler.Client;
 import org.openhab.binding.rainbird.internal.net.RainbirdClient.PollingResult;
@@ -32,9 +34,10 @@ import org.slf4j.LoggerFactory;
 /**
  * Zonen-Thing (Child). Steuert eine einzelne Bewässerungszone.
  */
+@NonNullByDefault
 public class RainbirdZoneHandler extends BaseThingHandler {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(RainbirdZoneHandler.class);
+    private static final Logger LOGGER = Objects.requireNonNull(LoggerFactory.getLogger(RainbirdZoneHandler.class));
 
     private int zoneNumber = 1;
     private int defaultDurationSec = 300;

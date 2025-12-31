@@ -6,7 +6,7 @@
 
   <groupId>org.openhab.addons.binding</groupId>
   <artifactId>org.openhab.binding.rainbird</artifactId>
-  <version>5.0.2-SNAPSHOT</version>
+  <version>5.1.0-SNAPSHOT</version>
   <packaging>bundle</packaging>
 
   <name>openHAB Add-ons :: Bundles :: Rain Bird Binding</name>
@@ -17,8 +17,8 @@
   </organization>
 
   <properties>
-    <oh.version>5.0.2</oh.version>
-    <maven.compiler.release>17</maven.compiler.release>
+    <oh.version>5.1.0</oh.version>
+    <maven.compiler.release>21</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.bundle.plugin.version>5.1.9</maven.bundle.plugin.version>
   </properties>

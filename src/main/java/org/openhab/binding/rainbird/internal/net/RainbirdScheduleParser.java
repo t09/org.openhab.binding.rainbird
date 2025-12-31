@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -37,6 +38,7 @@ final class RainbirdScheduleParser {
         // Water budget (B0) and acknowledgements (01) are ignored for summaries.
     }
 
+    @SuppressWarnings("null")
     public List<String> buildSummaries() {
         List<String> summaries = new ArrayList<>();
         for (int programIndex = 0; programIndex < programCount; programIndex++) {
@@ -60,14 +62,15 @@ final class RainbirdScheduleParser {
             return;
         }
         if ((subcommand & 96) == 96) {
-            handleProgramStart(subcommand & ~96, data.substring(6));
+            handleProgramStart(subcommand & ~96, Objects.requireNonNull(data.substring(6)));
             return;
         }
         if ((subcommand & 128) == 128) {
-            handleZoneDurations(subcommand & ~128, data.substring(6));
+            handleZoneDurations(subcommand & ~128, Objects.requireNonNull(data.substring(6)));
         }
     }
 
+    @SuppressWarnings("null")
     private void handleProgramStart(int programIndex, String rest) {
         Program program = programs.computeIfAbsent(programIndex, Program::new);
         for (int i = 0; i + 4 <= rest.length(); i += 4) {
@@ -81,6 +84,7 @@ final class RainbirdScheduleParser {
         }
     }
 
+    @SuppressWarnings("null")
     private void handleZoneDurations(int zonePage, String rest) {
         int zoneBase = zonePage * 2;
         List<Integer> durations = new ArrayList<>();
@@ -96,10 +100,10 @@ final class RainbirdScheduleParser {
             if (!activeZones.isEmpty() && !activeZones.contains(zoneNumber)) {
                 continue;
             }
-        // Ensure map entries exist for all programs even if we later overwrite them.
-        for (int programIndex = 0; programIndex < programCount; programIndex++) {
-            programs.computeIfAbsent(programIndex, Program::new);
-        }
+            // Ensure map entries exist for all programs even if we later overwrite them.
+            for (int programIndex = 0; programIndex < programCount; programIndex++) {
+                programs.computeIfAbsent(programIndex, Program::new);
+            }
             for (int programIndex = 0; programIndex < entriesPerZone && programIndex < programCount; programIndex++) {
                 int duration = durations.get(zoneOffset * entriesPerZone + programIndex);
                 if (duration <= 0) {
@@ -116,6 +120,7 @@ final class RainbirdScheduleParser {
         private final int index;
         private final List<String> startTimes = new ArrayList<>();
         private final Map<Integer, Integer> zoneDurations = new TreeMap<>();
+
         Program(int index) {
             this.index = index;
         }
@@ -131,7 +136,7 @@ final class RainbirdScheduleParser {
                 Map<Integer, Integer> filtered = new LinkedHashMap<>();
                 for (Map.Entry<Integer, Integer> entry : zoneDurations.entrySet()) {
                     if (activeZones.contains(entry.getKey())) {
-                        filtered.put(entry.getKey(), entry.getValue());
+                        filtered.put(Objects.requireNonNull(entry.getKey()), Objects.requireNonNull(entry.getValue()));
                     }
                 }
                 relevantDurations = filtered;
@@ -147,7 +152,7 @@ final class RainbirdScheduleParser {
                 zones = "Zones " + String.join(", ", parts);
             }
             if (!startTimes.isEmpty() && starts.startsWith("Starts")) {
-                return programName + ": " + starts + "; " + zones;
+                return Objects.requireNonNull(programName + ": " + starts + "; " + zones);
             }
             if (startTimes.isEmpty()) {
                 starts = "No starts";
