@@ -9,7 +9,6 @@ import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Objects;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
@@ -27,7 +26,7 @@ import org.slf4j.LoggerFactory;
 public class RainbirdPayloadCoder {
 
     private static final int BLOCK_SIZE = 16;
-    private static final Logger LOGGER = Objects.requireNonNull(LoggerFactory.getLogger(RainbirdPayloadCoder.class));
+    private static final Logger LOGGER = LoggerFactory.getLogger(RainbirdPayloadCoder.class);
 
     private final byte @Nullable [] sessionKey;
     private final SecureRandom secureRandom = new SecureRandom();
@@ -44,7 +43,7 @@ public class RainbirdPayloadCoder {
         String json = RainbirdJson.stringify(payload);
         byte @Nullable [] key = sessionKey;
         if (key == null) {
-            return Objects.requireNonNull(json.getBytes(StandardCharsets.UTF_8));
+            return json.getBytes(StandardCharsets.UTF_8);
         }
         return encrypt(json, key);
     }
@@ -64,25 +63,24 @@ public class RainbirdPayloadCoder {
     }
 
     private byte[] encrypt(String data, byte[] secretKey) throws IOException {
-        byte[] padded = addPadding(
-                (byte[]) Objects.requireNonNull((data + "\u0000\u0010").getBytes(StandardCharsets.UTF_8)));
+        byte[] padded = addPadding((data + "\u0000\u0010").getBytes(StandardCharsets.UTF_8));
         byte[] iv = new byte[BLOCK_SIZE];
         secureRandom.nextBytes(iv);
         byte[] encrypted = aes(secretKey, iv, padded, Cipher.ENCRYPT_MODE);
-        byte[] hash = sha256((byte[]) Objects.requireNonNull(data.getBytes(StandardCharsets.UTF_8)));
+        byte[] hash = sha256(data.getBytes(StandardCharsets.UTF_8));
         ByteBuffer buffer = ByteBuffer.allocate(hash.length + iv.length + encrypted.length);
         buffer.put(hash);
         buffer.put(iv);
         buffer.put(encrypted);
-        return Objects.requireNonNull(buffer.array());
+        return buffer.array();
     }
 
     private String decrypt(byte[] payload, byte[] secretKey) throws IOException {
         if (payload.length < 48) {
             throw new IOException("Encrypted payload too short");
         }
-        byte[] iv = (byte[]) Objects.requireNonNull(Arrays.copyOfRange(payload, 32, 48));
-        byte[] encrypted = (byte[]) Objects.requireNonNull(Arrays.copyOfRange(payload, 48, payload.length));
+        byte[] iv = Arrays.copyOfRange(payload, 32, 48);
+        byte[] encrypted = Arrays.copyOfRange(payload, 48, payload.length);
         byte[] decrypted = aes(secretKey, iv, encrypted, Cipher.DECRYPT_MODE);
         String text = new String(decrypted, StandardCharsets.UTF_8);
         text = rstrip(text, '\u0010');
@@ -93,10 +91,10 @@ public class RainbirdPayloadCoder {
     }
 
     private static byte[] deriveSessionKey(String password) {
-        byte[] keyBytes = Objects.requireNonNull(password.getBytes(StandardCharsets.UTF_8));
+        byte[] keyBytes = password.getBytes(StandardCharsets.UTF_8);
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return Objects.requireNonNull(digest.digest(keyBytes));
+            return digest.digest(keyBytes);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 not available", e);
         }
@@ -107,7 +105,7 @@ public class RainbirdPayloadCoder {
         if (padding == 0) {
             return data;
         }
-        byte[] result = (byte[]) Objects.requireNonNull(Arrays.copyOf(data, data.length + padding));
+        byte[] result = Arrays.copyOf(data, data.length + padding);
         Arrays.fill(result, data.length, result.length, (byte) 0x10);
         return result;
     }
@@ -115,7 +113,7 @@ public class RainbirdPayloadCoder {
     private static byte[] sha256(byte[] data) throws IOException {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return (byte[]) Objects.requireNonNull(digest.digest(data));
+            return digest.digest(data);
         } catch (NoSuchAlgorithmException e) {
             throw new IOException("SHA-256 not available", e);
         }
@@ -125,7 +123,7 @@ public class RainbirdPayloadCoder {
         try {
             Cipher cipher = Cipher.getInstance("AES/CBC/NoPadding");
             cipher.init(mode, new SecretKeySpec(key, "AES"), new IvParameterSpec(iv));
-            return (byte[]) Objects.requireNonNull(cipher.doFinal(data));
+            return cipher.doFinal(data);
         } catch (Exception e) {
             throw new IOException("Unable to process AES payload", e);
         }
@@ -136,7 +134,7 @@ public class RainbirdPayloadCoder {
         while (end > 0 && value.charAt(end - 1) == character) {
             end--;
         }
-        return (String) Objects.requireNonNull(value.substring(0, end));
+        return value.substring(0, end);
     }
 
     private static String rstripWhitespace(String value) {
@@ -144,7 +142,7 @@ public class RainbirdPayloadCoder {
         while (end > 0 && Character.isWhitespace(value.charAt(end - 1))) {
             end--;
         }
-        return (String) Objects.requireNonNull(value.substring(0, end));
+        return value.substring(0, end);
     }
 
     public static Map<String, @Nullable Object> requestPayload(long id, String method,

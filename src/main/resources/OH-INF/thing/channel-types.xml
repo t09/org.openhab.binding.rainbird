@@ -5,8 +5,8 @@
 
         <channel-type id="networkUp">
                 <item-type>Switch</item-type>
-                <label>Controller Network Connectivity</label>
-                <description>Indicates whether the controller is connected to the local network.</description>
+                <label>@text/channel-type.rainbird.networkUp.label</label>
+                <description>@text/channel-type.rainbird.networkUp.description</description>
                 <category>Network</category>
                 <tags>
                         <tag>Control</tag>
@@ -17,88 +17,88 @@
 
         <channel-type id="internetUp">
                 <item-type>Switch</item-type>
-                <label>Controller Internet Connectivity</label>
-                <description>Indicates whether the controller can reach the Rain Bird cloud.</description>
+                <label>@text/channel-type.rainbird.internetUp.label</label>
+                <description>@text/channel-type.rainbird.internetUp.description</description>
                 <category>Network</category>
                 <state readOnly="true"/>
         </channel-type>
 
         <channel-type id="wifiSignal">
                 <item-type>Number:Dimensionless</item-type>
-                <label>Wi-Fi Signal Strength</label>
-                <description>Wi-Fi signal strength reported by the controller.</description>
-                <category>SignalStrength</category>
+                <label>@text/channel-type.rainbird.wifiSignal.label</label>
+                <description>@text/channel-type.rainbird.wifiSignal.description</description>
+                <category>Network</category>
                 <state readOnly="true" pattern="%.0f %%"/>
         </channel-type>
 
         <channel-type id="wifiSsid">
                 <item-type>String</item-type>
-                <label>Wi-Fi SSID</label>
-                <description>Name of the Wi-Fi network used by the controller.</description>
+                <label>@text/channel-type.rainbird.wifiSsid.label</label>
+                <description>@text/channel-type.rainbird.wifiSsid.description</description>
                 <category>Text</category>
                 <state readOnly="true"/>
         </channel-type>
 
         <channel-type id="wifiMac">
                 <item-type>String</item-type>
-                <label>Wi-Fi MAC Address</label>
-                <description>MAC address reported by the controller.</description>
+                <label>@text/channel-type.rainbird.wifiMac.label</label>
+                <description>@text/channel-type.rainbird.wifiMac.description</description>
                 <category>Text</category>
                 <state readOnly="true"/>
         </channel-type>
 
         <channel-type id="zoneCount">
                 <item-type>Number</item-type>
-                <label>Zone Count</label>
-                <description>Total number of irrigation zones supported by the controller.</description>
+                <label>@text/channel-type.rainbird.zoneCount.label</label>
+                <description>@text/channel-type.rainbird.zoneCount.description</description>
                 <category>Number</category>
                 <state readOnly="true" pattern="%.0f"/>
         </channel-type>
 
         <channel-type id="programCount">
                 <item-type>Number</item-type>
-                <label>Program Count</label>
-                <description>Number of irrigation programs configured in the controller.</description>
+                <label>@text/channel-type.rainbird.programCount.label</label>
+                <description>@text/channel-type.rainbird.programCount.description</description>
                 <category>Number</category>
                 <state readOnly="true" pattern="%.0f"/>
         </channel-type>
 
         <channel-type id="scheduleSummary">
                 <item-type>String</item-type>
-                <label>Schedule Summary</label>
-                <description>Textual summary of the currently configured irrigation schedule.</description>
+                <label>@text/channel-type.rainbird.scheduleSummary.label</label>
+                <description>@text/channel-type.rainbird.scheduleSummary.description</description>
                 <category>Text</category>
                 <state readOnly="true"/>
         </channel-type>
 
         <channel-type id="controllerTime">
                 <item-type>DateTime</item-type>
-                <label>Controller Time</label>
-                <description>Current time reported by the controller.</description>
+                <label>@text/channel-type.rainbird.controllerTime.label</label>
+                <description>@text/channel-type.rainbird.controllerTime.description</description>
                 <category>Time</category>
                 <state readOnly="true"/>
         </channel-type>
 
         <channel-type id="rainDelay">
                 <item-type>Number:Time</item-type>
-                <label>Rain Delay</label>
-                <description>Remaining rain delay configured on the controller.</description>
+                <label>@text/channel-type.rainbird.rainDelay.label</label>
+                <description>@text/channel-type.rainbird.rainDelay.description</description>
                 <category>Time</category>
                 <state readOnly="true" pattern="%.0f d"/>
         </channel-type>
 
         <channel-type id="seasonalAdjust">
                 <item-type>Number:Dimensionless</item-type>
-                <label>Seasonal Adjust</label>
-                <description>Percentage based seasonal adjustment applied to watering schedules.</description>
+                <label>@text/channel-type.rainbird.seasonalAdjust.label</label>
+                <description>@text/channel-type.rainbird.seasonalAdjust.description</description>
                 <category>Settings</category>
                 <state readOnly="true" pattern="%.0f %%"/>
         </channel-type>
 
         <channel-type id="activeStation">
                 <item-type>Number</item-type>
-                <label>Active Station</label>
-                <description>Currently running irrigation station.</description>
+                <label>@text/channel-type.rainbird.activeStation.label</label>
+                <description>@text/channel-type.rainbird.activeStation.description</description>
                 <category>Number</category>
                 <state readOnly="true" pattern="%.0f">
                    <options>
@@ -110,16 +110,16 @@
 
         <channel-type id="lastPoll">
                 <item-type>DateTime</item-type>
-                <label>Last Poll</label>
-                <description>Timestamp when the controller status was last refreshed.</description>
+                <label>@text/channel-type.rainbird.lastPoll.label</label>
+                <description>@text/channel-type.rainbird.lastPoll.description</description>
                 <category>Time</category>
                 <state readOnly="true"/>
         </channel-type>
 
         <channel-type id="programSelector">
                 <item-type>String</item-type>
-                <label>Program Selector</label>
-                <description>Start or stop a stored irrigation program.</description>
+                <label>@text/channel-type.rainbird.programSelector.label</label>
+                <description>@text/channel-type.rainbird.programSelector.description</description>
                 <category>Control</category>
                 <state>
                         <options>
@@ -133,15 +133,15 @@
 
         <channel-type id="manualZoneSelector">
                 <item-type>String</item-type>
-                <label>Manual Zone Selector</label>
-                <description>Send a zone command such as ZONE1_ON or ZONE1_OFF to run or stop a station manually.</description>
+                <label>@text/channel-type.rainbird.manualZoneSelector.label</label>
+                <description>@text/channel-type.rainbird.manualZoneSelector.description</description>
                 <category>Control</category>
         </channel-type>
 
         <channel-type id="zoneActive">
                 <item-type>Switch</item-type>
-                <label>Zone Active</label>
-                <description>Start or stop manual watering for this zone.</description>
+                <label>@text/channel-type.rainbird.zoneActive.label</label>
+                <description>@text/channel-type.rainbird.zoneActive.description</description>
                 <category>Water</category>
                 <tags>
                         <tag>Control</tag>
@@ -151,7 +151,7 @@
 
         <channel-type id="zoneDuration">
                 <item-type>Number</item-type>
-                <label>Zone Duration</label>
+                <label>@text/channel-type.rainbird.zoneDuration.label</label>
                 <description>Requested manual watering duration for this zone in seconds.</description>
                 <category>Time</category>
                                 <tags>
@@ -162,7 +162,7 @@
 
         <channel-type id="zoneRemaining">
                 <item-type>Number</item-type>
-                <label>Zone Remaining Duration</label>
+                <label>@text/channel-type.rainbird.zoneRemaining.label</label>
                 <description>Remaining manual watering duration for this zone in seconds.</description>
                 <category>Time</category>
                                 <tags>
@@ -173,23 +173,23 @@
 
         <channel-type id="switch">
                 <item-type>Switch</item-type>
-                <label>Zone Switch</label>
-                <description>Turn the configured zone on or off.</description>
+                <label>@text/channel-type.rainbird.switch.label</label>
+                <description>@text/channel-type.rainbird.switch.description</description>
                 <category>Switch</category>
         </channel-type>
 
         <channel-type id="remainingTime">
                 <item-type>Number:Time</item-type>
-                <label>Remaining Runtime</label>
-                <description>Remaining runtime for the zone in seconds.</description>
+                <label>@text/channel-type.rainbird.remainingTime.label</label>
+                <description>@text/channel-type.rainbird.remainingTime.description</description>
                 <category>Time</category>
                 <state readOnly="true" pattern="%.0f s"/>
         </channel-type>
 
         <channel-type id="flow">
                 <item-type>Number:FlowRate</item-type>
-                <label>Zone Flow</label>
-                <description>Measured flow for the zone if supported by the controller.</description>
+                <label>@text/channel-type.rainbird.flow.label</label>
+                <description>@text/channel-type.rainbird.flow.description</description>
                 <category>Flow</category>
                 <state readOnly="true"/>
         </channel-type>

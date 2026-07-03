@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -62,11 +61,11 @@ final class RainbirdScheduleParser {
             return;
         }
         if ((subcommand & 96) == 96) {
-            handleProgramStart(subcommand & ~96, Objects.requireNonNull(data.substring(6)));
+            handleProgramStart(subcommand & ~96, data.substring(6));
             return;
         }
         if ((subcommand & 128) == 128) {
-            handleZoneDurations(subcommand & ~128, Objects.requireNonNull(data.substring(6)));
+            handleZoneDurations(subcommand & ~128, data.substring(6));
         }
     }
 
@@ -127,16 +126,13 @@ final class RainbirdScheduleParser {
 
         String summary(Set<Integer> activeZones) {
             String programName = buildProgramName(index);
-            String starts = startTimes.isEmpty() ? "No starts" : String.join(", ", startTimes);
-            if (!startTimes.isEmpty()) {
-                starts = "Starts " + starts;
-            }
+            String starts = startTimes.isEmpty() ? "No starts" : "Starts " + String.join(", ", startTimes);
             Map<Integer, Integer> relevantDurations = zoneDurations;
             if (!activeZones.isEmpty()) {
                 Map<Integer, Integer> filtered = new LinkedHashMap<>();
                 for (Map.Entry<Integer, Integer> entry : zoneDurations.entrySet()) {
                     if (activeZones.contains(entry.getKey())) {
-                        filtered.put(Objects.requireNonNull(entry.getKey()), Objects.requireNonNull(entry.getValue()));
+                        filtered.put(entry.getKey(), entry.getValue());
                     }
                 }
                 relevantDurations = filtered;
@@ -150,12 +146,6 @@ final class RainbirdScheduleParser {
                     parts.add(entry.getKey() + "=" + entry.getValue() + "m");
                 }
                 zones = "Zones " + String.join(", ", parts);
-            }
-            if (!startTimes.isEmpty() && starts.startsWith("Starts")) {
-                return Objects.requireNonNull(programName + ": " + starts + "; " + zones);
-            }
-            if (startTimes.isEmpty()) {
-                starts = "No starts";
             }
             return programName + ": " + starts + "; " + zones;
         }

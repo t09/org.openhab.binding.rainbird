@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -32,22 +32,23 @@ class RainbirdClientTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        HttpServer serverLocal = HttpServer.create(new InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0),
-                0);
+        HttpServer serverLocal = HttpServer.create(new InetSocketAddress(0), 0);
         serverLocal.createContext("/stick", this::handleRequest);
         serverLocal.start();
         server = serverLocal;
 
         RainbirdConfiguration config = new RainbirdConfiguration();
-        config.host = Objects.requireNonNull(serverLocal.getAddress().getHostString());
+        config.host = "localhost";
         config.port = serverLocal.getAddress().getPort();
         config.password = "testpassword";
 
         client = new MockRainbirdClient(config);
+        System.setProperty("http.keepAlive", "false");
     }
 
     @AfterEach
     void tearDown() {
+        System.clearProperty("http.keepAlive");
         HttpServer serverLocal = server;
         if (serverLocal != null) {
             serverLocal.stop(0);
@@ -91,21 +92,28 @@ class RainbirdClientTest {
         if (exchange == null) {
             return;
         }
-        byte[] body = Objects.requireNonNull(exchange.getRequestBody().readAllBytes());
+        try {
+            byte[] body = Objects.requireNonNull(exchange.getRequestBody().readAllBytes());
+            RainbirdPayloadCoder coder = new RainbirdPayloadCoder("testpassword");
+            Map<String, @Nullable Object> payload = coder.decode(body);
+            Map<String, @Nullable Object> responseBody = responses.pollFirst();
+            if (responseBody == null) {
+                responseBody = new LinkedHashMap<>();
+                responseBody.put("data", "00");
+            }
+            Map<String, @Nullable Object> envelope = new LinkedHashMap<>();
+            envelope.put("jsonrpc", "2.0");
+            envelope.put("id", payload != null ? payload.get("id") : 1);
+            envelope.put("result", responseBody);
 
-        RainbirdPayloadCoder coder = new RainbirdPayloadCoder("testpassword");
-        Map<String, @Nullable Object> payload = coder.decode(body);
-
-        Map<String, @Nullable Object> responseBody = Objects.requireNonNull(responses.pollFirst());
-        Map<String, @Nullable Object> envelope = new LinkedHashMap<>();
-        envelope.put("jsonrpc", "2.0");
-        envelope.put("id", Objects.requireNonNull(payload.get("id")));
-        envelope.put("result", responseBody);
-
-        byte[] bytes = coder.encode(envelope);
-        exchange.sendResponseHeaders(200, bytes.length);
-        exchange.getResponseBody().write(bytes);
-        exchange.close();
+            byte[] bytes = coder.encode(envelope);
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        } catch (Throwable t) {
+            t.printStackTrace();
+            throw t;
+        }
     }
 
     private class MockRainbirdClient extends RainbirdClient {

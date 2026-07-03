@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
@@ -24,7 +23,7 @@ final class RainbirdJson {
     public static String stringify(Map<String, @Nullable Object> value) throws IOException {
         StringBuilder builder = new StringBuilder();
         new Serializer(builder).writeObject(value);
-        return Objects.requireNonNull(builder.toString());
+        return builder.toString();
     }
 
     public static Map<String, @Nullable Object> parseObject(String json) throws IOException {
@@ -54,7 +53,7 @@ final class RainbirdJson {
                     builder.append(',');
                 }
                 first = false;
-                writeString(Objects.requireNonNull(entry.getKey()));
+                writeString(entry.getKey());
                 builder.append(':');
                 writeValue(entry.getValue());
             }
@@ -116,7 +115,7 @@ final class RainbirdJson {
             } else if (value instanceof String) {
                 writeString((String) value);
             } else if (value instanceof Number || value instanceof Boolean) {
-                builder.append(Objects.requireNonNull(Objects.toString(value)));
+                builder.append(value);
             } else if (value instanceof Map) {
                 @SuppressWarnings("unchecked")
                 Map<String, @Nullable Object> map = (Map<String, @Nullable Object>) value;
@@ -220,7 +219,7 @@ final class RainbirdJson {
             while (index < json.length()) {
                 char c = json.charAt(index++);
                 if (c == '"') {
-                    return Objects.requireNonNull(builder.toString());
+                    return builder.toString();
                 }
                 if (c == '\\') {
                     if (index >= json.length()) {
@@ -273,11 +272,11 @@ final class RainbirdJson {
         private Boolean parseBoolean() throws IOException {
             if (json.startsWith("true", index)) {
                 index += 4;
-                return Objects.requireNonNull(Boolean.TRUE);
+                return Boolean.TRUE;
             }
             if (json.startsWith("false", index)) {
                 index += 5;
-                return Objects.requireNonNull(Boolean.FALSE);
+                return Boolean.FALSE;
             }
             throw new IOException("Invalid boolean value in JSON");
         }
@@ -321,13 +320,13 @@ final class RainbirdJson {
             String number = json.substring(start, index);
             try {
                 if (isFloat) {
-                    return Objects.requireNonNull(Double.valueOf(number));
+                    return Double.valueOf(number);
                 }
                 long value = Long.parseLong(number);
                 if (value >= Integer.MIN_VALUE && value <= Integer.MAX_VALUE) {
-                    return Objects.requireNonNull(Integer.valueOf((int) value));
+                    return Integer.valueOf((int) value);
                 }
-                return Objects.requireNonNull(Long.valueOf(value));
+                return Long.valueOf(value);
             } catch (NumberFormatException e) {
                 throw new IOException("Invalid number in JSON", e);
             }

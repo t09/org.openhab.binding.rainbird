@@ -105,6 +105,7 @@ can be supported.
 * manually add/remove zone from controller
 
 ## known limitations
+* This is an experimental binding [BETA]
 * may not work on other controllers than LNK2
 * debugging is not guaranteed
 

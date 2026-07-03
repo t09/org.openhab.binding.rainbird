@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
 @NonNullByDefault
 public class RainbirdZoneHandler extends BaseThingHandler {
 
-    private static final Logger LOGGER = Objects.requireNonNull(LoggerFactory.getLogger(RainbirdZoneHandler.class));
+    private static final Logger LOGGER = LoggerFactory.getLogger(RainbirdZoneHandler.class);
 
     private int zoneNumber = 1;
     private int defaultDurationSec = 300;

@@ -8,6 +8,12 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.security.cert.X509Certificate;
+
 import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.Instant;
@@ -40,17 +46,18 @@ import org.slf4j.LoggerFactory;
 @NonNullByDefault
 public class RainbirdClient {
 
-    private static final Logger LOGGER = Objects.requireNonNull(LoggerFactory.getLogger(RainbirdClient.class));
+    private static final Logger LOGGER = LoggerFactory.getLogger(RainbirdClient.class);
     private static final Map<String, String> RAINBIRD_APP_HEADERS;
 
     static {
         Map<String, String> headers = new LinkedHashMap<>();
         headers.put("Accept-Language", "en");
         headers.put("Accept-Encoding", "gzip, deflate");
-        headers.put("User-Agent", "RainBird/2.0 CFNetwork/811.5.4 Darwin/16.7.0");
+        headers.put("User-Agent", "okhttp/3.12.12");
         headers.put("Accept", "*/*");
         headers.put("Content-Type", "application/octet-stream");
-        RAINBIRD_APP_HEADERS = Objects.requireNonNull(Collections.unmodifiableMap(headers));
+        headers.put("Connection", "keep-alive");
+        RAINBIRD_APP_HEADERS = Collections.unmodifiableMap(headers);
     }
 
     private final RainbirdPayloadCoder coder;
@@ -66,7 +73,7 @@ public class RainbirdClient {
 
     private static Duration resolveTimeout(RainbirdConfiguration configuration) {
         int timeout = configuration.timeoutMillis > 0 ? configuration.timeoutMillis : 5000;
-        return Objects.requireNonNull(Duration.ofMillis(Math.max(1000, timeout)));
+        return Duration.ofMillis(Math.max(1000, timeout));
     }
 
     private static URI buildEndpoint(RainbirdConfiguration configuration) {
@@ -89,7 +96,17 @@ public class RainbirdClient {
             if (port <= 0) {
                 port = -1;
             }
-            return new URI("http", null, host.trim(), port, path, null, null);
+            String scheme = "http";
+            String hostStr = host.trim();
+            if (hostStr.startsWith("https://")) {
+                scheme = "https";
+                hostStr = hostStr.substring(8);
+            } else if (hostStr.startsWith("http://")) {
+                hostStr = hostStr.substring(7);
+            } else if (port == 443) {
+                scheme = "https";
+            }
+            return new URI(scheme, null, hostStr, port, path, null, null);
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException("Invalid Rain Bird endpoint", e);
         }
@@ -113,15 +130,14 @@ public class RainbirdClient {
         int programCount = asInt(settingsPayload.get("numPrograms"), 0);
 
         AvailableStationsData stations = sendCommand(StickCommand.AVAILABLE_STATIONS,
-                RainbirdClient::decodeAvailableStations,
-                Integer.valueOf(0));
+                RainbirdClient::decodeAvailableStations, 0);
         CombinedState combinedState = sendCommand(StickCommand.COMBINED_CONTROLLER_STATE,
                 RainbirdClient::decodeCombinedControllerState);
 
         List<String> scheduleSummaries = fetchScheduleSummaries(programCount, stations);
 
         ControllerStatus controllerStatus = new ControllerStatus(networkStatus, wifiStatus, combinedState,
-                Objects.requireNonNull(Instant.now()));
+                Instant.now());
         ProgramStatus programStatus = new ProgramStatus(programCount, scheduleSummaries);
         ZoneStatus zoneStatus = new ZoneStatus(stations.activeZones(), stations.slotCount(),
                 combinedState.getActiveStation(),
@@ -235,7 +251,7 @@ public class RainbirdClient {
         return failureResult(StickCommand.STOP_IRRIGATION);
     }
 
-    protected Map<String, @Nullable Object> invoke(String method, Map<String, @Nullable Object> params)
+    protected synchronized Map<String, @Nullable Object> invoke(String method, Map<String, @Nullable Object> params)
             throws IOException, InterruptedException {
         Map<String, @Nullable Object> payload = RainbirdPayloadCoder.requestPayload(nextRequestId(), method,
                 new LinkedHashMap<>(params));
@@ -260,6 +276,16 @@ public class RainbirdClient {
     }
 
     private byte[] sendRequest(byte[] body) throws IOException {
+        return sendRequestInternal(body, false);
+    }
+
+    private byte[] sendRequestInternal(byte[] body, boolean isRetry) throws IOException {
+        try {
+            // Add a small delay between requests to avoid overwhelming the slow ESP-TM2 web server
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
         HttpURLConnection connection = openConnection();
         try {
             if (LOGGER.isDebugEnabled()) {
@@ -280,14 +306,44 @@ public class RainbirdClient {
                 throw new IOException("Unexpected HTTP status " + status + " from Rain Bird controller");
             }
             return response;
-        } finally {
+        } catch (Exception e) {
+            // Disconnect to drop the broken or stale connection from the pool
             connection.disconnect();
+            
+            // Retry exactly once to recover from stale keep-alive connections
+            if (!isRetry) {
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("Request failed (stale connection?), retrying once: {}", e.getMessage());
+                }
+                return sendRequestInternal(body, true);
+            }
+            throw e;
         }
     }
 
     private HttpURLConnection openConnection() throws IOException {
         URL url = endpoint.toURL();
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        
+        if (connection instanceof HttpsURLConnection) {
+            try {
+                TrustManager[] trustAllCerts = new TrustManager[] {
+                    new X509TrustManager() {
+                        public java.security.cert.X509Certificate[] getAcceptedIssuers() { return new java.security.cert.X509Certificate[0]; }
+                        public void checkClientTrusted(X509Certificate[] certs, String authType) { }
+                        public void checkServerTrusted(X509Certificate[] certs, String authType) { }
+                    }
+                };
+                SSLContext sc = SSLContext.getInstance("TLSv1.2");
+                sc.init(null, trustAllCerts, new java.security.SecureRandom());
+                HttpsURLConnection httpsConnection = (HttpsURLConnection) connection;
+                httpsConnection.setSSLSocketFactory(sc.getSocketFactory());
+                httpsConnection.setHostnameVerifier((hostname, session) -> true);
+            } catch (Exception e) {
+                LOGGER.warn("Failed to configure SSL for Rainbird stick", e);
+            }
+        }
+        
         int timeout = toTimeoutMillis(requestTimeout);
         connection.setConnectTimeout(timeout);
         connection.setReadTimeout(timeout);
@@ -314,10 +370,10 @@ public class RainbirdClient {
     private byte[] readResponse(HttpURLConnection connection, int status) throws IOException {
         InputStream responseStream = status >= 400 ? connection.getErrorStream() : connection.getInputStream();
         if (responseStream == null) {
-            return Objects.requireNonNull(new byte[0]);
+            return new byte[0];
         }
         try (InputStream stream = wrapContentStream(responseStream, connection.getContentEncoding())) {
-            return Objects.requireNonNull(stream.readAllBytes());
+            return stream.readAllBytes();
         }
     }
 
@@ -338,11 +394,17 @@ public class RainbirdClient {
     private <T> T sendCommand(StickCommand command, SipDecoder<T> decoder, Object... args)
             throws IOException, InterruptedException {
         String payload = command.encode(args);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Tunneling StickCommand {} with payload '{}'", command.name(), payload);
+        }
         Map<String, @Nullable Object> params = new LinkedHashMap<>();
         params.put("data", payload);
-        params.put("length", Objects.requireNonNull(Integer.valueOf(command.length)));
+        params.put("length", command.length);
         Map<String, @Nullable Object> response = invoke("tunnelSip", params);
         String data = asString(response.get("data"));
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Received StickCommand response for {}: '{}'", command.name(), data);
+        }
         if (data == null) {
             throw new IOException("Rain Bird tunnel response missing data field");
         }
@@ -366,7 +428,7 @@ public class RainbirdClient {
     private static AvailableStationsData decodeAvailableStations(StickCommand command, String data) throws IOException {
         expectPrefix(command, data, "83");
         if (data.length() < 12) {
-            return new AvailableStationsData(Objects.requireNonNull(Set.of()), 0);
+            return new AvailableStationsData(Set.of(), 0);
         }
         int page = safeParseHex(data, 2, 2);
         String mask = data.substring(4);
@@ -463,7 +525,25 @@ public class RainbirdClient {
             return new ZipCodeInfo(null, null);
         }
         String zipCode = asString(response.get("ZipCode"));
+        if (zipCode == null) {
+            zipCode = asString(response.get("zipCode"));
+        }
+        if (zipCode == null) {
+            zipCode = asString(response.get("zipcode"));
+        }
+        if (zipCode == null) {
+            zipCode = asString(response.get("postalCode"));
+        }
+        if (zipCode == null) {
+            zipCode = asString(response.get("code"));
+        }
         String country = asString(response.get("Country"));
+        if (country == null) {
+            country = asString(response.get("country"));
+        }
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Rain Bird getZipCode response payload: {}. Extracted zipCode: '{}', country: '{}'", response, zipCode, country);
+        }
         return new ZipCodeInfo(zipCode, country);
     }
 
@@ -492,12 +572,15 @@ public class RainbirdClient {
                     }
                     try {
                         int zone = Integer.parseInt(key);
-                        stationNames.put(Objects.requireNonNull(Integer.valueOf(zone)), value);
+                        stationNames.put(zone, value);
                     } catch (NumberFormatException e) {
                         LOGGER.debug("Ignoring invalid custom station key {}", key, e);
                     }
                 }
             }
+        }
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Rain Bird getWeatherAndStatus response payload: {}. Extracted stickId: '{}', controllerName: '{}', stations: {}", response, stickId, controllerName, stationNames);
         }
         return new WeatherStatus(stickId, controllerName, stationNames);
     }
@@ -506,16 +589,14 @@ public class RainbirdClient {
             throws IOException, InterruptedException {
         Set<Integer> activeZones = stations.activeZones();
         List<String> responses = new ArrayList<>();
-        responses.add(
-                sendCommand(StickCommand.RETRIEVE_SCHEDULE, RainbirdClient::decodeScheduleSegment,
-                        Objects.requireNonNull(Integer.valueOf(0))));
+        responses.add(sendCommand(StickCommand.RETRIEVE_SCHEDULE, RainbirdClient::decodeScheduleSegment, 0));
         for (int program = 0; program < programCount; program++) {
             responses.add(sendCommand(StickCommand.RETRIEVE_SCHEDULE, RainbirdClient::decodeScheduleSegment,
-                    Objects.requireNonNull(Integer.valueOf(0x10 | program))));
+                    0x10 | program));
         }
         for (int program = 0; program < programCount; program++) {
             responses.add(sendCommand(StickCommand.RETRIEVE_SCHEDULE, RainbirdClient::decodeScheduleSegment,
-                    Objects.requireNonNull(Integer.valueOf(0x60 | program))));
+                    0x60 | program));
         }
         int highestActive = activeZones.stream().mapToInt(Integer::intValue).max().orElse(0);
         int slotCount = stations.slotCount();
@@ -523,7 +604,7 @@ public class RainbirdClient {
         int pages = (zoneLimit + 1) / 2;
         for (int page = 0; page < pages; page++) {
             responses.add(sendCommand(StickCommand.RETRIEVE_SCHEDULE, RainbirdClient::decodeScheduleSegment,
-                    Objects.requireNonNull(Integer.valueOf(0x80 | page))));
+                    0x80 | page));
         }
         RainbirdScheduleParser parser = new RainbirdScheduleParser(programCount, activeZones);
         for (String response : responses) {
@@ -563,6 +644,8 @@ public class RainbirdClient {
         if (value instanceof String) {
             String text = ((String) value).trim();
             return text.isEmpty() ? null : text;
+        } else if (value instanceof Number) {
+            return String.valueOf(value);
         }
         return null;
     }
@@ -605,11 +688,11 @@ public class RainbirdClient {
         try {
             int safeMonth = Math.max(1, Math.min(month, 12));
             int safeDay = Math.max(1, Math.min(day, 28));
-            return Objects.requireNonNull(LocalDateTime.of(year, safeMonth, safeDay, hour, minute, second));
+            return LocalDateTime.of(year, safeMonth, safeDay, hour, minute, second);
         } catch (DateTimeException e) {
             LOGGER.debug("Invalid controller time: {}-{}-{} {}:{}:{}", Integer.valueOf(year), Integer.valueOf(month),
                     Integer.valueOf(day), Integer.valueOf(hour), Integer.valueOf(minute), Integer.valueOf(second));
-            return Objects.requireNonNull(LocalDateTime.now());
+            return LocalDateTime.now();
         }
     }
 
@@ -693,7 +776,7 @@ public class RainbirdClient {
 
         public ProgramStatus(int programCount, List<String> summaries) {
             this.programCount = programCount;
-            this.summaries = Objects.requireNonNull(Collections.unmodifiableList(new ArrayList<>(summaries)));
+            this.summaries = Collections.unmodifiableList(new ArrayList<>(summaries));
         }
 
         public int getProgramCount() {
@@ -713,7 +796,7 @@ public class RainbirdClient {
         private final int remainingRuntime;
 
         public ZoneStatus(Set<Integer> availableZones, int slotCount, int activeZone, int remainingRuntime) {
-            this.availableZones = Objects.requireNonNull(Collections.unmodifiableSet(new HashSet<>(availableZones)));
+            this.availableZones = Collections.unmodifiableSet(new HashSet<>(availableZones));
             this.slotCount = slotCount;
             this.activeZone = activeZone;
             this.remainingRuntime = remainingRuntime;
@@ -988,22 +1071,20 @@ public class RainbirdClient {
         public String encode(Object... args) {
             StringBuilder builder = new StringBuilder(commandCode);
             if (this == RETRIEVE_SCHEDULE) {
-                int value = args.length > 0 ? toInt(Objects.requireNonNull(args[0])) : 0;
-                builder.append(Objects.requireNonNull(String.format("%04X", Integer.valueOf(value & 0xFFFF))));
-                return Objects.requireNonNull(builder.toString());
+                int value = args.length > 0 ? toInt(args[0]) : 0;
+                builder.append(String.format("%04X", value & 0xFFFF));
+                return builder.toString();
             }
             if (this == MANUALLY_RUN_STATION) {
-                int zone = args.length > 0 ? toInt(Objects.requireNonNull(args[0])) : 0;
-                int minutes = args.length > 1 ? toInt(Objects.requireNonNull(args[1])) : 0;
-                builder.append(Objects.requireNonNull(
-                        String.format("%04X%02X", Integer.valueOf(zone & 0xFFFF), Integer.valueOf(minutes & 0xFF))));
-                return Objects.requireNonNull(builder.toString());
+                int zone = args.length > 0 ? toInt(args[0]) : 0;
+                int minutes = args.length > 1 ? toInt(args[1]) : 0;
+                builder.append(String.format("%04X%02X", zone & 0xFFFF, minutes & 0xFF));
+                return builder.toString();
             }
             for (Object arg : args) {
-                builder.append(Objects.requireNonNull(
-                        String.format("%02X", Integer.valueOf(toInt(Objects.requireNonNull(arg)) & 0xFF))));
+                builder.append(String.format("%02X", toInt(arg) & 0xFF));
             }
-            return Objects.requireNonNull(builder.toString());
+            return builder.toString();
         }
 
         public int commandEcho() {
@@ -1030,10 +1111,10 @@ public class RainbirdClient {
         StringBuilder sb = new StringBuilder();
         int offset = 0;
         for (int i = 0; i < data.length; i += 16) {
-            sb.append(Objects.requireNonNull(String.format("%04X: ", Integer.valueOf(offset))));
+            sb.append(String.format("%04X: ", offset));
             int j;
             for (j = 0; j < 16 && i + j < data.length; j++) {
-                sb.append(Objects.requireNonNull(String.format("%02X ", Integer.valueOf(data[i + j] & 0xFF))));
+                sb.append(String.format("%02X ", data[i + j] & 0xFF));
             }
             for (; j < 16; j++) {
                 sb.append("   ");
@@ -1047,7 +1128,7 @@ public class RainbirdClient {
             sb.append('\n');
             offset += 16;
         }
-        return Objects.requireNonNull(sb.toString());
+        return sb.toString();
     }
 
 }

@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -65,7 +66,7 @@ public class RainbirdBridgeHandler extends BaseBridgeHandler {
     private static final int DEFAULT_MANUAL_DURATION_MINUTES = 5;
     private static final int MAX_MANUAL_DURATION_MINUTES = 100;
 
-    private final Logger logger = Objects.requireNonNull(LoggerFactory.getLogger(RainbirdBridgeHandler.class));
+    private final Logger logger = LoggerFactory.getLogger(RainbirdBridgeHandler.class);
 
     private @Nullable Client client;
     private @Nullable ScheduledFuture<?> pollTask;
@@ -102,7 +103,7 @@ public class RainbirdBridgeHandler extends BaseBridgeHandler {
         RainbirdConfiguration configuration;
         try {
             configuration = createConfiguration(Objects.requireNonNull(host), port, Objects.requireNonNull(password),
-                    pollingIntervalSeconds, ConfigurationUtils.asInt(cfg.get(CONFIG_TIMEOUT), 5000));
+                    pollingIntervalSeconds, ConfigurationUtils.asInt(cfg.get(CONFIG_TIMEOUT), 15000));
         } catch (IllegalArgumentException e) {
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR, e.getMessage());
             return;
@@ -170,6 +171,19 @@ public class RainbirdBridgeHandler extends BaseBridgeHandler {
             updateStatus(ThingStatus.ONLINE);
         } catch (IOException e) {
             logger.debug("Rain Bird Polling fehlgeschlagen", e);
+            
+            Configuration config = getThing().getConfiguration();
+            String host = ConfigurationUtils.asString(config.get(CONFIG_HOST));
+            int port = ConfigurationUtils.asInt(config.get(CONFIG_PORT), 80);
+            
+            if (host != null && !host.startsWith("https://") && port == 80) {
+                logger.info("Rain-Bird Stick verweigert die HTTP-Verbindung beim Polling. Führe Auto-Fallback auf HTTPS (Port 443) durch...");
+                Configuration newConfig = new Configuration(config.getProperties());
+                newConfig.put(CONFIG_HOST, host);
+                newConfig.put(CONFIG_PORT, 443);
+                updateConfiguration(newConfig);
+            }
+            
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR, e.getMessage());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -189,8 +203,7 @@ public class RainbirdBridgeHandler extends BaseBridgeHandler {
         String mac = wifiStatus.getMacAddress();
         updateState(CHANNEL_WIFI_MAC, mac != null && !mac.isEmpty() ? new StringType(mac) : UnDefType.NULL);
 
-        if ((deviceId == null || deviceId.isEmpty() || "controller".equals(deviceId)) && mac != null
-                && !mac.isEmpty()) {
+        if ((deviceId.isEmpty() || "controller".equals(deviceId)) && mac != null && !mac.isEmpty()) {
             deviceId = mac;
         }
 
@@ -247,11 +260,11 @@ public class RainbirdBridgeHandler extends BaseBridgeHandler {
         String countryValue = zipCode != null ? zipCode.getCountry() : null;
         changed |= applyProperty(properties, PROPERTY_COUNTRY, countryValue);
 
-        String customName = ensureCustomStationName(activeClient, zipCode);
+        String customName = ensureCustomStationName(activeClient, zipCode, wifiStatus.getMacAddress());
         changed |= applyProperty(properties, PROPERTY_CUSTOM_STATION_NAME, customName);
 
         if (changed) {
-            getThing().setProperties(properties);
+            updateProperties(properties);
         }
     }
 
@@ -306,15 +319,18 @@ public class RainbirdBridgeHandler extends BaseBridgeHandler {
         return null;
     }
 
-    private @Nullable String ensureCustomStationName(Client activeClient, @Nullable ZipCodeInfo zipCode) {
-        if (cachedCustomStationName != null && !cachedCustomStationName.isBlank()) {
-            return cachedCustomStationName;
+    private @Nullable String ensureCustomStationName(Client activeClient, @Nullable ZipCodeInfo zipCode, @Nullable String wifiMac) {
+        if (cachedCustomStationName != null) {
+            return cachedCustomStationName.isBlank() ? null : cachedCustomStationName;
         }
         if (zipCode == null) {
             return null;
         }
         String stickId = deviceId;
         if (stickId == null || stickId.isBlank() || "controller".equalsIgnoreCase(stickId)) {
+            stickId = wifiMac;
+        }
+        if (stickId == null || stickId.isBlank()) {
             return null;
         }
         String zip = zipCode.getCode();
@@ -325,6 +341,7 @@ public class RainbirdBridgeHandler extends BaseBridgeHandler {
         try {
             WeatherStatus weatherStatus = activeClient.getWeatherAndStatus(stickId, country, zip);
             if (weatherStatus == null) {
+                cachedCustomStationName = "";
                 return null;
             }
             String controllerName = weatherStatus.getControllerName();
@@ -338,6 +355,8 @@ public class RainbirdBridgeHandler extends BaseBridgeHandler {
                     return cachedCustomStationName;
                 }
             }
+            cachedCustomStationName = "";
+
         } catch (IOException e) {
             logger.debug("Konnte den Stationsnamen nicht vom Cloud-Dienst laden", e);
         } catch (InterruptedException e) {
@@ -473,12 +492,9 @@ public class RainbirdBridgeHandler extends BaseBridgeHandler {
 
         int zoneNumber = zoneIndex.intValue();
         if (command == OnOffType.ON) {
-            int duration = Objects.requireNonNull(zoneDurationsMinutes.getOrDefault(Integer.valueOf(zoneNumber),
-                    DEFAULT_MANUAL_DURATION_MINUTES));
-            duration = sanitizeDurationMinutes(duration);
-            Integer zoneObj = Objects.requireNonNull(Integer.valueOf(zoneNumber));
-            Integer durationObj = Objects.requireNonNull(Integer.valueOf(duration));
-            zoneDurationsMinutes.put(zoneObj, durationObj);
+            int duration = sanitizeDurationMinutes(
+                    zoneDurationsMinutes.getOrDefault(zoneNumber, DEFAULT_MANUAL_DURATION_MINUTES));
+            zoneDurationsMinutes.put(zoneNumber, duration);
 
             int remainingSeconds = duration * 60;
             updateState(CHANNEL_ZONE_REMAINING_PREFIX + zoneNumber, new DecimalType(remainingSeconds));
@@ -496,7 +512,7 @@ public class RainbirdBridgeHandler extends BaseBridgeHandler {
             int channelCount = lastDynamicZoneCount;
             for (int zone = 1; zone <= channelCount; zone++) {
                 updateState(CHANNEL_ZONE_ACTIVE_PREFIX + zone, OnOffType.OFF);
-                updateState(CHANNEL_ZONE_REMAINING_PREFIX + zone, new DecimalType(0));
+                updateState(CHANNEL_ZONE_REMAINING_PREFIX + zone, new QuantityType<>(0, Units.SECOND));
             }
         }
     }
@@ -512,18 +528,15 @@ public class RainbirdBridgeHandler extends BaseBridgeHandler {
             return;
         }
         int sanitized = sanitizeDurationMinutes(minutes);
-        zoneDurationsMinutes.put(Objects.requireNonNull(zoneIndex), Objects.requireNonNull(Integer.valueOf(sanitized)));
+        zoneDurationsMinutes.put(zoneIndex, sanitized);
         updateState(channelUID.getId(), new DecimalType(sanitized * 60));
     }
 
     private void publishDurationState(int zoneIndex) {
-        Integer zoneKey = Objects.requireNonNull(Integer.valueOf(zoneIndex));
-        zoneDurationsMinutes.putIfAbsent(zoneKey,
-                Objects.requireNonNull(Integer.valueOf(DEFAULT_MANUAL_DURATION_MINUTES)));
-        @Nullable
-        Integer duration = zoneDurationsMinutes.get(zoneKey);
+        zoneDurationsMinutes.putIfAbsent(zoneIndex, DEFAULT_MANUAL_DURATION_MINUTES);
+        Integer duration = zoneDurationsMinutes.get(zoneIndex);
         if (duration != null) {
-            updateState(CHANNEL_ZONE_DURATION_PREFIX + zoneIndex, new DecimalType(duration.intValue() * 60));
+            updateState(CHANNEL_ZONE_DURATION_PREFIX + zoneIndex, new DecimalType(duration * 60));
         }
     }
 
@@ -634,22 +647,26 @@ public class RainbirdBridgeHandler extends BaseBridgeHandler {
                 || channelId.startsWith(CHANNEL_ZONE_REMAINING_PREFIX);
     }
 
+    @SuppressWarnings("null")
     private Channel createZoneActiveChannel(ThingUID thingUID, int zoneIndex) {
         return createZoneChannel(thingUID, CHANNEL_ZONE_ACTIVE_PREFIX + zoneIndex, CHANNEL_TYPE_ZONE_ACTIVE,
-                "Zone " + zoneIndex + " Active");
+                "Zone " + zoneIndex + " Active", Set.of("Switch"));
     }
 
+    @SuppressWarnings("null")
     private Channel createZoneDurationChannel(ThingUID thingUID, int zoneIndex) {
         return createZoneChannel(thingUID, CHANNEL_ZONE_DURATION_PREFIX + zoneIndex, CHANNEL_TYPE_ZONE_DURATION,
-                "Zone " + zoneIndex + " Duration");
+                "Zone " + zoneIndex + " Duration", Set.of("Setpoint", "Duration"));
     }
 
+    @SuppressWarnings("null")
     private Channel createZoneRemainingChannel(ThingUID thingUID, int zoneIndex) {
         return createZoneChannel(thingUID, CHANNEL_ZONE_REMAINING_PREFIX + zoneIndex, CHANNEL_TYPE_ZONE_REMAINING,
-                "Zone " + zoneIndex + " Remaining");
+                "Zone " + zoneIndex + " Remaining", Set.of("Status", "Duration"));
     }
 
-    private Channel createZoneChannel(ThingUID thingUID, String channelId, String channelTypeId, String label) {
+    private Channel createZoneChannel(ThingUID thingUID, String channelId, String channelTypeId, String label,
+            Set<String> tags) {
         ChannelUID channelUID = new ChannelUID(thingUID, channelId);
         ChannelTypeUID channelTypeUID = new ChannelTypeUID(BINDING_ID, channelTypeId);
 
@@ -660,7 +677,8 @@ public class RainbirdBridgeHandler extends BaseBridgeHandler {
             itemType = "Number";
         }
 
-        return ChannelBuilder.create(channelUID, itemType).withType(channelTypeUID).withLabel(label).build();
+        return ChannelBuilder.create(channelUID, itemType).withType(channelTypeUID).withLabel(label)
+                .withDefaultTags(tags).build();
     }
 
     private void updateZoneChannelStates(ZoneStatus zoneStatus) {
@@ -711,8 +729,7 @@ public class RainbirdBridgeHandler extends BaseBridgeHandler {
             }
         }
         if (command instanceof DecimalType) {
-            int seconds = ((DecimalType) command).toBigDecimal().intValue();
-            return secondsToMinutesCeiling(seconds);
+            return secondsToMinutesCeiling(((DecimalType) command).intValue());
         }
         return -1;
     }
@@ -771,7 +788,7 @@ public class RainbirdBridgeHandler extends BaseBridgeHandler {
 
         try {
             if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-                HostSettings parsed = parseUriHost(Objects.requireNonNull(URI.create(trimmed)), configuredPort);
+                HostSettings parsed = parseUriHost(URI.create(trimmed), configuredPort);
                 return parsed;
             }
         } catch (IllegalArgumentException e) {
@@ -788,7 +805,7 @@ public class RainbirdBridgeHandler extends BaseBridgeHandler {
 
         URI hostUri;
         try {
-            hostUri = Objects.requireNonNull(URI.create("http://" + hostPart));
+            hostUri = URI.create("http://" + hostPart);
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Ungültiger Host: " + hostPart, e);
         }
@@ -816,8 +833,8 @@ public class RainbirdBridgeHandler extends BaseBridgeHandler {
 
         @Nullable
         String scheme = uri.getScheme();
-        if (scheme != null && !scheme.isBlank() && !"http".equalsIgnoreCase(scheme)) {
-            throw new IllegalArgumentException("Nur HTTP-Verbindungen werden unterstützt");
+        if (scheme != null && !scheme.isBlank() && !"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
+            throw new IllegalArgumentException("Nur HTTP und HTTPS-Verbindungen werden unterstützt");
         }
         int port = uri.getPort();
         if (port <= 0) {
